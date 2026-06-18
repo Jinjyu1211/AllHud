@@ -1,0 +1,24 @@
+<Project Sdk="Dalamud.NET.Sdk/15.0.0">
+    <PropertyGroup>
+        <PackageProjectUrl>https://github.com/QiongHHHZZZ/AllHud</PackageProjectUrl>
+        <Version>0.0.0.1</Version>
+        <LangVersion>preview</LangVersion>
+        <DebugType>portable</DebugType>
+        <TargetFramework>net10.0-windows</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    </PropertyGroup>
+
+    <!-- 国服 XIVLauncherCN：覆盖 SDK 默认的国际服 Dalamud 路径 -->
+    <PropertyGroup Condition="'$(DALAMUD_HOME)' == '' And $([MSBuild]::IsOSPlatform('Windows'))">
+        <DalamudLibPath>$(appdata)\XIVLauncherCN\addon\Hooks\dev\</DalamudLibPath>
+        <!-- SDK 的 props 已用国际服路径拼好 AssemblySearchPaths，这里把 CN 路径补回去 -->
+        <AssemblySearchPaths>$(AssemblySearchPaths);$(DalamudLibPath)</AssemblySearchPaths>
+    </PropertyGroup>
+
+    <!-- 插件图标：构建时复制到输出目录，Dalamud 对 dev plugin 会读取 <DLL目录>\images\icon.png -->
+    <ItemGroup>
+        <None Include="images\icon.png" Link="images\icon.png" CopyToOutputDirectory="PreserveNewest" />
+    </ItemGroup>
+</Project>

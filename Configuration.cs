@@ -4,7 +4,7 @@ using System.Numerics;
 namespace AllHud;
 
 public sealed class Configuration : IPluginConfiguration {
-    private const int CurrentVersion = 70;
+    private const int CurrentVersion = 73;
 
     public const string TaskBarComponentTime = "time";
     public const string TaskBarComponentLocalTime = "local_time";
@@ -64,6 +64,8 @@ public sealed class Configuration : IPluginConfiguration {
     public bool Locked { get; set; }
     public bool TargetInfoLocked { get; set; }
     public bool StatusBarLocked { get; set; }
+    public bool StatusBarMousePassthrough { get; set; }
+    public bool PartyInfoMousePassthrough { get; set; }
     public bool ShowStatusOverlay { get; set; }
     public bool ShowCustomTargetInfo { get; set; } = true;
     public Vector2 CustomTargetInfoPosition { get; set; } = new(560.0f, 160.0f);
@@ -157,6 +159,10 @@ public sealed class Configuration : IPluginConfiguration {
     public bool ShowSelfCooldownBarPreview { get; set; }
     public bool ShowPartyInfoPreview { get; set; }
     public Vector2 SelfCooldownBarPosition { get; set; } = new(760.0f, 520.0f);
+    public bool CustomThemeEnabled { get; set; }
+    public Vector4 CustomThemeAccentColor { get; set; } = new(0.84f, 0.34f, 0.52f, 1.0f);
+    public Vector4 CustomThemeBackgroundColor { get; set; } = new(0.992f, 0.940f, 0.948f, 1.0f);
+    public Vector4 CustomThemeTextColor { get; set; } = new(0.42f, 0.28f, 0.35f, 1.0f);
     public List<string> HiddenImGuiWindowNames { get; set; } = [];
     public List<string> TaskBarComponentOrder { get; set; } = [.. DefaultTaskBarComponentOrder];
     public List<string> TaskBarLeftComponentOrder { get; set; } = [];
@@ -176,6 +182,7 @@ public sealed class Configuration : IPluginConfiguration {
     public bool JobActionSelectionInitialized { get; set; }
     public List<string> EnabledJobActionKeys { get; set; } = [];
     public List<CustomTrackedDefinition> CustomTrackedDefinitions { get; set; } = [];
+    public List<CustomCurrencyDefinition> CustomCurrencies { get; set; } = [];
 
     public bool ApplyMigrations() {
         var changed = false;
@@ -606,6 +613,25 @@ public sealed class Configuration : IPluginConfiguration {
 
         if (Version < 70) {
             SelfCooldownBarLayoutDirection = Math.Clamp(SelfCooldownBarLayoutDirection, 0, 1);
+            changed = true;
+        }
+
+        if (Version < 71) {
+            StatusBarMousePassthrough = false;
+            PartyInfoMousePassthrough = false;
+            changed = true;
+        }
+
+        if (Version < 72) {
+            CustomThemeEnabled = false;
+            CustomThemeAccentColor = new Vector4(0.84f, 0.34f, 0.52f, 1.0f);
+            CustomThemeBackgroundColor = new Vector4(0.992f, 0.940f, 0.948f, 1.0f);
+            CustomThemeTextColor = new Vector4(0.42f, 0.28f, 0.35f, 1.0f);
+            changed = true;
+        }
+
+        if (Version < 73) {
+            CustomCurrencies = [];
             changed = true;
         }
 

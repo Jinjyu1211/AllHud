@@ -1042,26 +1042,95 @@ public sealed partial class ConfigWindow {
             ImGui.SameLine(0.0f, 18.0f);
         }
 
-        var selected = CurrencyDisplayOptions.FirstOrDefault(option => option.ItemId == this.config.TaskBarCurrencyItemId);
+        var allOptions = CurrencyDisplayOptions.Concat(
+            this.config.CustomCurrencies
+                .Where(c => c.Enabled && c.ItemId != 0)
+                .Select(c => new CurrencyDisplayOption(c.ItemId, c.Name))
+        ).ToList();
+
+        var selected = allOptions.FirstOrDefault(option => option.ItemId == this.config.TaskBarCurrencyItemId);
         var selectedName = selected.ItemId == 0 ? "金币" : selected.Name;
         ImGui.SetNextItemWidth(Math.Min(180.0f, Math.Max(140.0f, settingsWidth)));
-        if (!ImGui.BeginCombo("##TaskBarCurrencyItem", selectedName)) {
-            return;
+        if (ImGui.BeginCombo("##TaskBarCurrencyItem", selectedName)) {
+            foreach (var option in CurrencyDisplayOptions) {
+                var isSelected = option.ItemId == this.config.TaskBarCurrencyItemId;
+                if (ImGui.Selectable(option.Name, isSelected)) {
+                    this.config.TaskBarCurrencyItemId = option.ItemId;
+                    this.saveConfig();
+                }
+
+                if (isSelected) {
+                    ImGui.SetItemDefaultFocus();
+                }
+            }
+
+            if (this.config.CustomCurrencies.Any(c => c.Enabled && c.ItemId != 0)) {
+                ImGui.Separator();
+                ImGui.TextDisabled("自定义");
+
+                foreach (var custom in this.config.CustomCurrencies.Where(c => c.Enabled && c.ItemId != 0)) {
+                    var isSelected = custom.ItemId == this.config.TaskBarCurrencyItemId;
+                    if (ImGui.Selectable(custom.Name, isSelected)) {
+                        this.config.TaskBarCurrencyItemId = custom.ItemId;
+                        this.saveConfig();
+                    }
+
+                    if (isSelected) {
+                        ImGui.SetItemDefaultFocus();
+                    }
+                }
+            }
+
+            ImGui.EndCombo();
         }
 
-        foreach (var option in CurrencyDisplayOptions) {
-            var isSelected = option.ItemId == this.config.TaskBarCurrencyItemId;
-            if (ImGui.Selectable(option.Name, isSelected)) {
-                this.config.TaskBarCurrencyItemId = option.ItemId;
+        ImGui.Spacing();
+        DrawTargetInfoSubsection("自定义货币");
+        ImGui.TextDisabled("可添加任意物品 ID 作为货币追踪，适用于随版本变更的神典石等。");
+        ImGui.Spacing();
+
+        var customCurrencies = this.config.CustomCurrencies;
+        for (var i = 0; i < customCurrencies.Count; i++) {
+            var currency = customCurrencies[i];
+            var enabled = currency.Enabled;
+            var name = currency.Name ?? string.Empty;
+            var itemId = (int)currency.ItemId;
+
+            DrawCompactCheckbox($"##custom_currency_enabled_{i}", $"custom_currency_enabled_{i}", enabled, value => {
+                currency.Enabled = value;
+                this.saveConfig();
+            });
+            ImGui.SameLine(0.0f, 6.0f);
+
+            ImGui.SetNextItemWidth(120.0f);
+            if (ImGui.InputText($"##custom_currency_name_{i}", ref name, 64)) {
+                currency.Name = name;
                 this.saveConfig();
             }
+            ImGui.SameLine(0.0f, 6.0f);
 
-            if (isSelected) {
-                ImGui.SetItemDefaultFocus();
+            ImGui.SetNextItemWidth(100.0f);
+            if (ImGui.InputInt($"##custom_currency_itemid_{i}", ref itemId, 1, 10)) {
+                currency.ItemId = (uint)Math.Max(0, itemId);
+                this.saveConfig();
+            }
+            ImGui.SameLine(0.0f, 6.0f);
+
+            if (ImGui.SmallButton($"删除##custom_currency_delete_{i}")) {
+                customCurrencies.RemoveAt(i);
+                i--;
+                this.saveConfig();
             }
         }
 
-        ImGui.EndCombo();
+        if (ImGui.Button("+ 添加自定义货币")) {
+            customCurrencies.Add(new CustomCurrencyDefinition {
+                Name = "自定义货币",
+                ItemId = 0,
+                Enabled = true,
+            });
+            this.saveConfig();
+        }
     }
 
     private void DrawTaskBarGearsetSettings() {

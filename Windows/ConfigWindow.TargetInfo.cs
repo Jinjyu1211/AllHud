@@ -53,6 +53,8 @@ public sealed partial class ConfigWindow {
             DrawCheckbox("启动状态栏", nameof(this.config.ShowStatusOverlay), this.config.ShowStatusOverlay, value => this.config.ShowStatusOverlay = value);
             ImGui.SameLine(0.0f, 10.0f);
             DrawCheckbox("锁定窗口", nameof(this.config.StatusBarLocked), this.config.StatusBarLocked, value => this.config.StatusBarLocked = value);
+            ImGui.SameLine(0.0f, 10.0f);
+            DrawCheckbox("鼠标穿透", nameof(this.config.StatusBarMousePassthrough), this.config.StatusBarMousePassthrough, value => this.config.StatusBarMousePassthrough = value);
             DrawSegmentedSelector("布局模式", "status_bar_layout_mode", Math.Clamp(this.config.StatusBarLayoutMode, 0, 1), value => this.config.StatusBarLayoutMode = value, ("合并", 0), ("拆分", 1));
 
             DrawTargetInfoSubsection("内容");
@@ -73,6 +75,8 @@ public sealed partial class ConfigWindow {
     private void DrawPartyInfoPage() {
         DrawSectionCard("队伍信息", () => {
             DrawCheckbox("启动队伍信息", nameof(this.config.ShowPartyInfo), this.config.ShowPartyInfo, value => this.config.ShowPartyInfo = value);
+            ImGui.SameLine(0.0f, 10.0f);
+            DrawCheckbox("鼠标穿透", nameof(this.config.PartyInfoMousePassthrough), this.config.PartyInfoMousePassthrough, value => this.config.PartyInfoMousePassthrough = value);
 
             ImGui.TextDisabled("队伍信息会贴在原生队伍列表旁显示，仅副本中启用。");
 
@@ -91,6 +95,42 @@ public sealed partial class ConfigWindow {
 
             DrawCheckbox("隐藏已结束的队伍冷却", nameof(this.config.HideExpiredCooldowns), this.config.HideExpiredCooldowns, value => this.config.HideExpiredCooldowns = value);
         });
+    }
+
+    private void DrawAppearancePage() {
+        DrawSectionCard("外观主题", () => {
+            DrawCheckbox("启用自定义主题", nameof(this.config.CustomThemeEnabled), this.config.CustomThemeEnabled, value => this.config.CustomThemeEnabled = value);
+            ImGui.TextDisabled("关闭时使用默认粉白主题。仅影响本设置窗口配色。");
+
+            if (!this.config.CustomThemeEnabled) {
+                return;
+            }
+
+            DrawTargetInfoSubsection("颜色");
+            DrawColorPicker("强调色", this.config.CustomThemeAccentColor, value => this.config.CustomThemeAccentColor = value);
+            DrawColorPicker("背景色", this.config.CustomThemeBackgroundColor, value => this.config.CustomThemeBackgroundColor = value);
+            DrawColorPicker("文字色", this.config.CustomThemeTextColor, value => this.config.CustomThemeTextColor = value);
+
+            ImGui.Spacing();
+            if (ImGui.Button("重置为默认")) {
+                this.config.CustomThemeAccentColor = new Vector4(0.84f, 0.34f, 0.52f, 1.0f);
+                this.config.CustomThemeBackgroundColor = new Vector4(0.992f, 0.940f, 0.948f, 1.0f);
+                this.config.CustomThemeTextColor = new Vector4(0.42f, 0.28f, 0.35f, 1.0f);
+                this.saveConfig();
+            }
+        });
+    }
+
+    private void DrawColorPicker(string label, Vector4 current, Action<Vector4> setter) {
+        var value = current;
+        ImGui.AlignTextToFramePadding();
+        ImGui.TextUnformatted(label);
+        ImGui.SameLine(0.0f, 8.0f);
+        ImGui.SetNextItemWidth(160.0f);
+        if (ImGui.ColorEdit4($"##{label}", ref value, ImGuiColorEditFlags.NoInputs | ImGuiColorEditFlags.AlphaBar)) {
+            setter(value);
+            this.saveConfig();
+        }
     }
 
 }

@@ -20,6 +20,7 @@ public sealed partial class ConfigWindow {
         队伍信息,
         任务栏,
         技能,
+        外观,
         调试,
     }
 
@@ -91,7 +92,7 @@ public sealed partial class ConfigWindow {
         new(28, "亚拉戈诗学神典石"),
         new(25, "狼印章"),
         new(26807, "双色宝石"),
-        new(27, "狩猎徽章"),
+        new(27, "同盟徽章"),
         new(10307, "百战徽章"),
     ];
     private readonly Configuration config;
@@ -240,10 +241,40 @@ public sealed partial class ConfigWindow {
         ImGui.End();
     }
 
-    private static void PushCustomStyle() {
-        // 粉白底（轻微暖调），通过面板覆盖色形成分区层次。
-        ImGui.PushStyleColor(ImGuiCol.WindowBg, new Vector4(0.992f, 0.940f, 0.948f, 1.0f));
-        ImGui.PushStyleColor(ImGuiCol.ChildBg, new Vector4(1.0f, 0.970f, 0.976f, 1.0f));
+    private void PushCustomStyle() {
+        var windowBg = new Vector4(0.992f, 0.940f, 0.948f, 1.0f);
+        var childBg = new Vector4(1.0f, 0.970f, 0.976f, 1.0f);
+        var text = new Vector4(0.42f, 0.28f, 0.35f, 1.0f);
+        var border = new Vector4(0.910f, 0.700f, 0.750f, 0.65f);
+        var separator = new Vector4(0.925f, 0.670f, 0.730f, 0.70f);
+        var buttonActive = new Vector4(0.925f, 0.680f, 0.735f, 1.0f);
+        var headerActive = new Vector4(0.900f, 0.660f, 0.720f, 1.0f);
+        var tabActive = new Vector4(0.975f, 0.890f, 0.905f, 1.0f);
+        var scrollbarGrab = new Vector4(0.900f, 0.560f, 0.640f, 0.68f);
+        var scrollbarGrabHovered = new Vector4(0.870f, 0.460f, 0.560f, 0.82f);
+        var scrollbarGrabActive = new Vector4(0.820f, 0.380f, 0.500f, 1.0f);
+        var sliderGrab = new Vector4(0.74f, 0.34f, 0.52f, 1.0f);
+        var sliderGrabActive = new Vector4(0.66f, 0.26f, 0.46f, 1.0f);
+
+        if (this.config.CustomThemeEnabled) {
+            var accent = this.config.CustomThemeAccentColor;
+            windowBg = this.config.CustomThemeBackgroundColor;
+            childBg = this.config.CustomThemeBackgroundColor;
+            text = this.config.CustomThemeTextColor;
+            border = WithAlpha(accent, 0.55f);
+            separator = WithAlpha(accent, 0.55f);
+            buttonActive = WithAlpha(accent, 0.92f);
+            headerActive = WithAlpha(accent, 0.90f);
+            tabActive = WithAlpha(accent, 0.85f);
+            scrollbarGrab = WithAlpha(accent, 0.68f);
+            scrollbarGrabHovered = WithAlpha(accent, 0.82f);
+            scrollbarGrabActive = WithAlpha(accent, 1.0f);
+            sliderGrab = accent;
+            sliderGrabActive = accent;
+        }
+
+        ImGui.PushStyleColor(ImGuiCol.WindowBg, windowBg);
+        ImGui.PushStyleColor(ImGuiCol.ChildBg, childBg);
 
         // 输入框背景
         ImGui.PushStyleColor(ImGuiCol.FrameBg, new Vector4(1.0f, 0.985f, 0.980f, 1.0f));
@@ -254,34 +285,34 @@ public sealed partial class ConfigWindow {
         // 按钮
         ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(1.0f, 0.985f, 0.980f, 1.0f));
         ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.975f, 0.850f, 0.875f, 1.0f));
-        ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.925f, 0.680f, 0.735f, 1.0f));
+        ImGui.PushStyleColor(ImGuiCol.ButtonActive, buttonActive);
 
         // 可折叠标题 / 表头
         ImGui.PushStyleColor(ImGuiCol.Header, new Vector4(0.965f, 0.840f, 0.870f, 1.0f));
         ImGui.PushStyleColor(ImGuiCol.HeaderHovered, new Vector4(0.940f, 0.760f, 0.810f, 1.0f));
-        ImGui.PushStyleColor(ImGuiCol.HeaderActive, new Vector4(0.900f, 0.660f, 0.720f, 1.0f));
+        ImGui.PushStyleColor(ImGuiCol.HeaderActive, headerActive);
 
         // 标签页
         ImGui.PushStyleColor(ImGuiCol.Tab, new Vector4(0.990f, 0.950f, 0.955f, 1.0f));
         ImGui.PushStyleColor(ImGuiCol.TabHovered, new Vector4(0.950f, 0.820f, 0.850f, 1.0f));
-        ImGui.PushStyleColor(ImGuiCol.TabActive, new Vector4(0.975f, 0.890f, 0.905f, 1.0f));
+        ImGui.PushStyleColor(ImGuiCol.TabActive, tabActive);
 
         // 分隔线 / 边框
-        ImGui.PushStyleColor(ImGuiCol.Separator, new Vector4(0.925f, 0.670f, 0.730f, 0.70f));
-        ImGui.PushStyleColor(ImGuiCol.Border, new Vector4(0.910f, 0.700f, 0.750f, 0.65f));
+        ImGui.PushStyleColor(ImGuiCol.Separator, separator);
+        ImGui.PushStyleColor(ImGuiCol.Border, border);
 
-        // 文字 - 暖紫灰，不使用黑色/近黑色。
-        ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.42f, 0.28f, 0.35f, 1.0f));
+        // 文字
+        ImGui.PushStyleColor(ImGuiCol.Text, text);
 
         // 滚动条
         ImGui.PushStyleColor(ImGuiCol.ScrollbarBg, new Vector4(0.940f, 0.850f, 0.860f, 0.35f));
-        ImGui.PushStyleColor(ImGuiCol.ScrollbarGrab, new Vector4(0.900f, 0.560f, 0.640f, 0.68f));
-        ImGui.PushStyleColor(ImGuiCol.ScrollbarGrabHovered, new Vector4(0.870f, 0.460f, 0.560f, 0.82f));
-        ImGui.PushStyleColor(ImGuiCol.ScrollbarGrabActive, new Vector4(0.820f, 0.380f, 0.500f, 1.0f));
+        ImGui.PushStyleColor(ImGuiCol.ScrollbarGrab, scrollbarGrab);
+        ImGui.PushStyleColor(ImGuiCol.ScrollbarGrabHovered, scrollbarGrabHovered);
+        ImGui.PushStyleColor(ImGuiCol.ScrollbarGrabActive, scrollbarGrabActive);
 
         // 滑动条
-        ImGui.PushStyleColor(ImGuiCol.SliderGrab, new Vector4(0.74f, 0.34f, 0.52f, 1.0f));
-        ImGui.PushStyleColor(ImGuiCol.SliderGrabActive, new Vector4(0.66f, 0.26f, 0.46f, 1.0f));
+        ImGui.PushStyleColor(ImGuiCol.SliderGrab, sliderGrab);
+        ImGui.PushStyleColor(ImGuiCol.SliderGrabActive, sliderGrabActive);
 
         // 隐藏缩放箭头（保留缩放功能）
         ImGui.PushStyleColor(ImGuiCol.ResizeGrip, new Vector4(0.0f, 0.0f, 0.0f, 0.0f));
@@ -423,6 +454,7 @@ public sealed partial class ConfigWindow {
         DrawNavButton(ConfigPage.队伍信息, "队伍信息");
         DrawNavButton(ConfigPage.任务栏, "任务栏");
         DrawNavButton(ConfigPage.技能, "独立监控");
+        DrawNavButton(ConfigPage.外观, "外观主题");
         DrawNavButton(ConfigPage.调试, "调试");
 
         ImGui.Unindent(4.0f);
@@ -480,6 +512,7 @@ public sealed partial class ConfigWindow {
             ConfigPage.队伍信息 => new Vector4(0.68f, 0.48f, 0.14f, 1.0f),
             ConfigPage.任务栏 => new Vector4(0.20f, 0.58f, 0.72f, 1.0f),
             ConfigPage.技能 => new Vector4(0.42f, 0.36f, 0.72f, 1.0f),
+            ConfigPage.外观 => new Vector4(0.55f, 0.40f, 0.75f, 1.0f),
             ConfigPage.调试 => new Vector4(0.58f, 0.36f, 0.66f, 1.0f),
             _ => new Vector4(0.42f, 0.17f, 0.28f, 1.0f),
         };
@@ -549,6 +582,9 @@ public sealed partial class ConfigWindow {
                 break;
             case ConfigPage.技能:
                 DrawSkillsPage();
+                break;
+            case ConfigPage.外观:
+                DrawAppearancePage();
                 break;
             case ConfigPage.调试:
                 DrawDebugPage();

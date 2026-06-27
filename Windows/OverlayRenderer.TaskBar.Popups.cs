@@ -871,16 +871,17 @@ public sealed partial class OverlayRenderer {
         new(CurrencyItemPoetics, "亚拉戈诗学神典石", 0),
         new(CurrencyItemWolfMarks, "狼印章", 0),
         new(CurrencyItemBiColorGemstones, "双色宝石", 0),
-        new(CurrencyItemAlliedSeals, "狩猎徽章", 0),
+        new(CurrencyItemAlliedSeals, "同盟徽章", 0),
         new(CurrencyItemCenturioSeals, "百战徽章", 0),
     ];
 
     private CurrencyDisplayInfo GetSelectedCurrencyDisplayInfo() {
-        var itemId = CurrencyDisplayOptions.Any(option => option.ItemId == this.config.TaskBarCurrencyItemId)
+        var allOptions = GetAllCurrencyOptions().ToList();
+        var itemId = allOptions.Any(option => option.ItemId == this.config.TaskBarCurrencyItemId)
             ? this.config.TaskBarCurrencyItemId
             : CurrencyItemGil;
 
-        var fallback = CurrencyDisplayOptions.First(option => option.ItemId == itemId);
+        var fallback = allOptions.First(option => option.ItemId == itemId);
         try {
             if (this.dataManager.GetExcelSheet<LuminaItem>().TryGetRow(itemId, out var item)) {
                 var name = GetExcelText(item.Name.ExtractText());
@@ -893,7 +894,7 @@ public sealed partial class OverlayRenderer {
     }
 
     private IEnumerable<CurrencyDisplayInfo> GetCurrencyDisplayOptions() {
-        foreach (var option in CurrencyDisplayOptions) {
+        foreach (var option in GetAllCurrencyOptions()) {
             var resolved = option;
             try {
                 if (this.dataManager.GetExcelSheet<LuminaItem>().TryGetRow(option.ItemId, out var item)) {
@@ -904,6 +905,18 @@ public sealed partial class OverlayRenderer {
             }
 
             yield return resolved;
+        }
+    }
+
+    private IEnumerable<CurrencyDisplayInfo> GetAllCurrencyOptions() {
+        foreach (var option in CurrencyDisplayOptions) {
+            yield return option;
+        }
+
+        foreach (var custom in this.config.CustomCurrencies) {
+            if (custom.Enabled && custom.ItemId != 0) {
+                yield return new CurrencyDisplayInfo(custom.ItemId, custom.Name, 0);
+            }
         }
     }
 

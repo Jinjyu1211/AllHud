@@ -1,6 +1,6 @@
 <Project Sdk="Dalamud.NET.Sdk/15.0.0">
     <PropertyGroup>
-        <PackageProjectUrl>https://github.com/QiongHHHZZZ/AllHud</PackageProjectUrl>
+        <PackageProjectUrl>https://github.com/Jinjyu1211/AllHud</PackageProjectUrl>
         <Version>0.0.0.1</Version>
         <LangVersion>preview</LangVersion>
         <DebugType>portable</DebugType>

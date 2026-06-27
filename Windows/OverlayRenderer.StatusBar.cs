@@ -42,6 +42,10 @@ public sealed partial class OverlayRenderer {
             flags |= ImGuiWindowFlags.NoMove;
         }
 
+        if (this.config.StatusBarMousePassthrough) {
+            flags |= ImGuiWindowFlags.NoInputs | ImGuiWindowFlags.NoMouseInputs;
+        }
+
         var selfStatuses = this.config.ShowStatusPreview
             ? CreatePreviewSelfHudStatuses()
             : this.combatState.GetSelfHudStatuses(this.config);

@@ -99,6 +99,33 @@ public sealed partial class ConfigWindow {
 
     private void DrawAppearancePage() {
         DrawSectionCard("外观主题", () => {
+            DrawTargetInfoSubsection("样式预设");
+            if (this.config.ImportedStyleColors is { Count: > 0 }) {
+                ImGui.TextColored(new Vector4(0.6f, 0.9f, 1.0f, 1.0f), $"已导入: {this.config.ImportedStyleName ?? "未命名"}");
+                ImGui.SameLine();
+                if (ImGui.Button("清除导入样式")) {
+                    this.config.ImportedStyleColors = null;
+                    this.config.ImportedStyleVars = null;
+                    this.config.ImportedStyleName = null;
+                    this.saveConfig();
+                }
+                ImGui.TextDisabled("导入样式优先于下方自定义主题。从剪贴板粘贴 DS1 开头的样式码。");
+            } else {
+                if (ImGui.Button("从剪贴板导入样式")) {
+                    var clip = ImGui.GetClipboardText();
+                    var preset = StylePreset.Decode(clip);
+                    if (preset != null && preset.Colors.Count > 0) {
+                        this.config.ImportedStyleColors = preset.Colors;
+                        this.config.ImportedStyleVars = preset.ToStyleVars();
+                        this.config.ImportedStyleName = preset.Name;
+                        this.saveConfig();
+                    }
+                }
+                ImGui.TextDisabled("支持导入 Dalamud 样式预设（DS1 开头的压缩码）。");
+            }
+
+            ImGui.Separator();
+
             DrawCheckbox("启用自定义主题", nameof(this.config.CustomThemeEnabled), this.config.CustomThemeEnabled, value => this.config.CustomThemeEnabled = value);
             ImGui.TextDisabled("关闭时使用默认粉白主题。仅影响本设置窗口配色。");
 

@@ -13,6 +13,8 @@ namespace AllHud.Windows;
 
 public sealed partial class ConfigWindow {
     private const int InstalledPluginSelectionCacheTtlMs = 1000;
+    private int pushedColorCount;
+    private int pushedVarCount;
 
     private enum ConfigPage {
         状态栏,
@@ -172,24 +174,28 @@ public sealed partial class ConfigWindow {
         DrawCustomTitleBar();
 
         // ── 左侧导航 + 内容区 ──
-        // 两块区域使用不同的轻量底色和边框，避免粉白主题下混在一起。
         var navWidth = 156.0f;
-        ImGui.PushStyleColor(ImGuiCol.ChildBg, new Vector4(0.982f, 0.900f, 0.918f, 1.0f));
-        ImGui.PushStyleColor(ImGuiCol.Border, new Vector4(0.925f, 0.660f, 0.725f, 0.50f));
+        var hasImported = this.config.ImportedStyleColors is { Count: > 0 };
+        if (!hasImported) {
+            ImGui.PushStyleColor(ImGuiCol.ChildBg, new Vector4(0.982f, 0.900f, 0.918f, 1.0f));
+            ImGui.PushStyleColor(ImGuiCol.Border, new Vector4(0.925f, 0.660f, 0.725f, 0.50f));
+        }
         ImGui.BeginChild("config_nav", new Vector2(navWidth, -1.0f), true);
         DrawNavSection();
         ImGui.EndChild();
-        ImGui.PopStyleColor(2);
+        if (!hasImported) ImGui.PopStyleColor(2);
 
         ImGui.SameLine();
 
-        ImGui.PushStyleColor(ImGuiCol.ChildBg, new Vector4(1.0f, 0.972f, 0.978f, 1.0f));
-        ImGui.PushStyleColor(ImGuiCol.Border, new Vector4(0.940f, 0.720f, 0.780f, 0.42f));
+        if (!hasImported) {
+            ImGui.PushStyleColor(ImGuiCol.ChildBg, new Vector4(1.0f, 0.972f, 0.978f, 1.0f));
+            ImGui.PushStyleColor(ImGuiCol.Border, new Vector4(0.940f, 0.720f, 0.780f, 0.42f));
+        }
         ImGui.BeginChild("config_content", new Vector2(0.0f, -1.0f), true);
         ImGui.Dummy(new Vector2(1.0f, 4.0f));
         DrawSelectedPage();
         ImGui.EndChild();
-        ImGui.PopStyleColor(2);
+        if (!hasImported) ImGui.PopStyleColor(2);
 
         ImGui.End();
         PopCustomStyle();
@@ -242,6 +248,14 @@ public sealed partial class ConfigWindow {
     }
 
     private void PushCustomStyle() {
+        this.pushedColorCount = 0;
+        this.pushedVarCount = 0;
+
+        if (this.config.ImportedStyleColors is { Count: > 0 }) {
+            this.PushImportedStyle();
+            return;
+        }
+
         var windowBg = new Vector4(0.992f, 0.940f, 0.948f, 1.0f);
         var childBg = new Vector4(1.0f, 0.970f, 0.976f, 1.0f);
         var text = new Vector4(0.42f, 0.28f, 0.35f, 1.0f);
@@ -329,11 +343,43 @@ public sealed partial class ConfigWindow {
         ImGui.PushStyleVar(ImGuiStyleVar.FrameBorderSize, 1.0f);
         ImGui.PushStyleVar(ImGuiStyleVar.ChildRounding, 8.0f);
         ImGui.PushStyleVar(ImGuiStyleVar.ChildBorderSize, 1.0f);
+        this.pushedColorCount = 27;
+        this.pushedVarCount = 10;
     }
 
-    private static void PopCustomStyle() {
-        ImGui.PopStyleVar(10);
-        ImGui.PopStyleColor(27);
+    private void PushImportedStyle() {
+        foreach (var (name, color) in this.config.ImportedStyleColors!) {
+            if (Enum.TryParse<ImGuiCol>(name, out var col)) {
+                ImGui.PushStyleColor(col, color);
+                this.pushedColorCount++;
+            }
+        }
+
+        var sv = this.config.ImportedStyleVars;
+        if (sv == null) return;
+
+        void TryPushVar(ImGuiStyleVar v, string key) {
+            if (sv.TryGetValue(key, out var val)) {
+                ImGui.PushStyleVar(v, val);
+                this.pushedVarCount++;
+            }
+        }
+
+        TryPushVar(ImGuiStyleVar.FrameRounding, "FrameRounding");
+        TryPushVar(ImGuiStyleVar.TabRounding, "TabRounding");
+        TryPushVar(ImGuiStyleVar.WindowRounding, "WindowRounding");
+        TryPushVar(ImGuiStyleVar.ScrollbarSize, "ScrollbarSize");
+        TryPushVar(ImGuiStyleVar.ScrollbarRounding, "ScrollbarRounding");
+        TryPushVar(ImGuiStyleVar.GrabRounding, "GrabRounding");
+        TryPushVar(ImGuiStyleVar.GrabMinSize, "GrabMinSize");
+        TryPushVar(ImGuiStyleVar.FrameBorderSize, "FrameBorderSize");
+        TryPushVar(ImGuiStyleVar.ChildRounding, "ChildRounding");
+        TryPushVar(ImGuiStyleVar.ChildBorderSize, "ChildBorderSize");
+    }
+
+    private void PopCustomStyle() {
+        if (this.pushedVarCount > 0) ImGui.PopStyleVar(this.pushedVarCount);
+        if (this.pushedColorCount > 0) ImGui.PopStyleColor(this.pushedColorCount);
     }
 
     private void DrawCustomTitleBar() {

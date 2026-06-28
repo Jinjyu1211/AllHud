@@ -4,7 +4,7 @@ using System.Numerics;
 namespace AllHud;
 
 public sealed class Configuration : IPluginConfiguration {
-    private const int CurrentVersion = 73;
+    private const int CurrentVersion = 74;
 
     public const string TaskBarComponentTime = "time";
     public const string TaskBarComponentLocalTime = "local_time";
@@ -163,6 +163,9 @@ public sealed class Configuration : IPluginConfiguration {
     public Vector4 CustomThemeAccentColor { get; set; } = new(0.84f, 0.34f, 0.52f, 1.0f);
     public Vector4 CustomThemeBackgroundColor { get; set; } = new(0.992f, 0.940f, 0.948f, 1.0f);
     public Vector4 CustomThemeTextColor { get; set; } = new(0.42f, 0.28f, 0.35f, 1.0f);
+    public Dictionary<string, Vector4>? ImportedStyleColors { get; set; }
+    public Dictionary<string, float>? ImportedStyleVars { get; set; }
+    public string? ImportedStyleName { get; set; }
     public List<string> HiddenImGuiWindowNames { get; set; } = [];
     public List<string> TaskBarComponentOrder { get; set; } = [.. DefaultTaskBarComponentOrder];
     public List<string> TaskBarLeftComponentOrder { get; set; } = [];

@@ -277,13 +277,10 @@ public sealed partial class ConfigWindow {
         this.pushedColorCount = 0;
         this.pushedVarCount = 0;
 
-        // 导入样式：完全由调色板控制
-        if (this.config.ActiveThemePreset == ThemePreset.Imported
-            && this.config.ImportedStyleColors is { Count: > 0 }) {
-            this.PushImportedStyle();
-            return;
-        }
+        var useImported = this.config.ActiveThemePreset == ThemePreset.Imported
+                          && this.config.ImportedStyleColors is { Count: > 0 };
 
+        // 基础调色板：默认粉白，自定义主题用用户色，导入样式也先 push 作为兜底
         var windowBg = new Vector4(0.992f, 0.940f, 0.948f, 1.0f);
         var childBg = new Vector4(1.0f, 0.970f, 0.976f, 1.0f);
         var text = new Vector4(0.42f, 0.28f, 0.35f, 1.0f);
@@ -347,47 +344,52 @@ public sealed partial class ConfigWindow {
         PushColor(ImGuiCol.ResizeGrip, new Vector4(0.0f, 0.0f, 0.0f, 0.0f));
         PushColor(ImGuiCol.ResizeGripHovered, new Vector4(0.0f, 0.0f, 0.0f, 0.0f));
         PushColor(ImGuiCol.ResizeGripActive, new Vector4(0.0f, 0.0f, 0.0f, 0.0f));
-        ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, 4.0f);
-        ImGui.PushStyleVar(ImGuiStyleVar.TabRounding, 6.0f);
-        ImGui.PushStyleVar(ImGuiStyleVar.WindowRounding, 8.0f);
-        ImGui.PushStyleVar(ImGuiStyleVar.ScrollbarSize, 10.0f);
-        ImGui.PushStyleVar(ImGuiStyleVar.ScrollbarRounding, 4.0f);
-        ImGui.PushStyleVar(ImGuiStyleVar.GrabRounding, 4.0f);
-        ImGui.PushStyleVar(ImGuiStyleVar.GrabMinSize, 10.0f);
-        ImGui.PushStyleVar(ImGuiStyleVar.FrameBorderSize, 1.0f);
-        ImGui.PushStyleVar(ImGuiStyleVar.ChildRounding, 8.0f);
-        ImGui.PushStyleVar(ImGuiStyleVar.ChildBorderSize, 1.0f);
-        this.pushedVarCount = 10;
+
+        // 样式变量：导入样式用调色板变量，否则用默认
+        if (useImported) {
+            this.PushImportedStyleVars();
+        } else {
+            ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, 4.0f);
+            ImGui.PushStyleVar(ImGuiStyleVar.TabRounding, 6.0f);
+            ImGui.PushStyleVar(ImGuiStyleVar.WindowRounding, 8.0f);
+            ImGui.PushStyleVar(ImGuiStyleVar.ScrollbarSize, 10.0f);
+            ImGui.PushStyleVar(ImGuiStyleVar.ScrollbarRounding, 4.0f);
+            ImGui.PushStyleVar(ImGuiStyleVar.GrabRounding, 4.0f);
+            ImGui.PushStyleVar(ImGuiStyleVar.GrabMinSize, 10.0f);
+            ImGui.PushStyleVar(ImGuiStyleVar.FrameBorderSize, 1.0f);
+            ImGui.PushStyleVar(ImGuiStyleVar.ChildRounding, 8.0f);
+            ImGui.PushStyleVar(ImGuiStyleVar.ChildBorderSize, 1.0f);
+            this.pushedVarCount = 10;
+        }
+
+        // 导入样式：调色板覆盖基色，确保完全接管
+        if (useImported) {
+            foreach (var (name, color) in this.config.ImportedStyleColors!) {
+                if (Enum.TryParse<ImGuiCol>(name, out var col)) {
+                    ImGui.PushStyleColor(col, color);
+                    this.pushedColorCount++;
+                }
+            }
+        }
     }
 
-    private void PushImportedStyle() {
-        foreach (var (name, color) in this.config.ImportedStyleColors!) {
-            if (Enum.TryParse<ImGuiCol>(name, out var col)) {
-                ImGui.PushStyleColor(col, color);
-                this.pushedColorCount++;
-            }
-        }
-
+    private void PushImportedStyleVars() {
         var sv = this.config.ImportedStyleVars;
-        if (sv == null) return;
-
-        void TryPushVar(ImGuiStyleVar v, string key) {
-            if (sv.TryGetValue(key, out var val)) {
-                ImGui.PushStyleVar(v, val);
-                this.pushedVarCount++;
-            }
+        void TryPushVar(ImGuiStyleVar v, string key, float fallback) {
+            var val = sv != null && sv.TryGetValue(key, out var f) ? f : fallback;
+            ImGui.PushStyleVar(v, val);
+            this.pushedVarCount++;
         }
-
-        TryPushVar(ImGuiStyleVar.FrameRounding, "FrameRounding");
-        TryPushVar(ImGuiStyleVar.TabRounding, "TabRounding");
-        TryPushVar(ImGuiStyleVar.WindowRounding, "WindowRounding");
-        TryPushVar(ImGuiStyleVar.ScrollbarSize, "ScrollbarSize");
-        TryPushVar(ImGuiStyleVar.ScrollbarRounding, "ScrollbarRounding");
-        TryPushVar(ImGuiStyleVar.GrabRounding, "GrabRounding");
-        TryPushVar(ImGuiStyleVar.GrabMinSize, "GrabMinSize");
-        TryPushVar(ImGuiStyleVar.FrameBorderSize, "FrameBorderSize");
-        TryPushVar(ImGuiStyleVar.ChildRounding, "ChildRounding");
-        TryPushVar(ImGuiStyleVar.ChildBorderSize, "ChildBorderSize");
+        TryPushVar(ImGuiStyleVar.FrameRounding, "FrameRounding", 4.0f);
+        TryPushVar(ImGuiStyleVar.TabRounding, "TabRounding", 6.0f);
+        TryPushVar(ImGuiStyleVar.WindowRounding, "WindowRounding", 8.0f);
+        TryPushVar(ImGuiStyleVar.ScrollbarSize, "ScrollbarSize", 10.0f);
+        TryPushVar(ImGuiStyleVar.ScrollbarRounding, "ScrollbarRounding", 4.0f);
+        TryPushVar(ImGuiStyleVar.GrabRounding, "GrabRounding", 4.0f);
+        TryPushVar(ImGuiStyleVar.GrabMinSize, "GrabMinSize", 10.0f);
+        TryPushVar(ImGuiStyleVar.FrameBorderSize, "FrameBorderSize", 1.0f);
+        TryPushVar(ImGuiStyleVar.ChildRounding, "ChildRounding", 8.0f);
+        TryPushVar(ImGuiStyleVar.ChildBorderSize, "ChildBorderSize", 1.0f);
     }
 
     private void PopCustomStyle() {
@@ -530,9 +532,10 @@ public sealed partial class ConfigWindow {
         var itemMin = cursor;
         var itemMax = cursor + new Vector2(areaWidth, height);
 
-        // 大卡片 — 选中背景配圆角边框
+        // 大卡片 — 选中背景配圆角边框（颜色取自 style，便于导入样式接管）
         if (selected) {
-            drawList.AddRectFilled(itemMin, itemMax, ImGui.GetColorU32(new Vector4(1.0f, 0.965f, 0.972f, 0.92f)), 7.0f);
+            var selBg = WithAlpha(ImGui.GetStyle().Colors[(int)ImGuiCol.Header], 0.92f);
+            drawList.AddRectFilled(itemMin, itemMax, ImGui.GetColorU32(selBg), 7.0f);
             drawList.AddRect(itemMin, itemMax, ImGui.GetColorU32(WithAlpha(accentColor, 0.42f)), 7.0f);
 
             // 左侧指示条
@@ -545,13 +548,14 @@ public sealed partial class ConfigWindow {
 
         // 小卡片 — 悬浮
         if (ImGui.IsMouseHoveringRect(itemMin, itemMax) && !selected) {
-            drawList.AddRectFilled(itemMin, itemMax, ImGui.GetColorU32(new Vector4(1.0f, 0.960f, 0.970f, 0.55f)), 6.0f);
+            var hoverBg = WithAlpha(ImGui.GetStyle().Colors[(int)ImGuiCol.HeaderHovered], 0.55f);
+            drawList.AddRectFilled(itemMin, itemMax, ImGui.GetColorU32(hoverBg), 6.0f);
         }
 
         // 文字
         var textColor = selected
             ? WithAlpha(accentColor, 1.0f)
-            : new Vector4(0.42f, 0.30f, 0.36f, 0.78f);
+            : WithAlpha(ImGui.GetStyle().Colors[(int)ImGuiCol.Text], 0.78f);
         drawList.AddText(itemMin + new Vector2(14.0f, (height - ImGui.GetTextLineHeight()) * 0.5f), ImGui.GetColorU32(textColor), label);
 
         // 点击区域
@@ -596,7 +600,13 @@ public sealed partial class ConfigWindow {
         };
     }
 
-    private static Vector4 GetSectionTitleColor(string title) {
+    private Vector4 GetSectionTitleColor(string title) {
+        // 导入样式：统一用调色板 Header 色
+        if (this.config.ActiveThemePreset == ThemePreset.Imported
+            && this.config.ImportedStyleColors is { Count: > 0 }) {
+            return this.GetPageAccentColor(ConfigPage.目标情报);
+        }
+
         if (title.Contains("目标", StringComparison.Ordinal)) {
             return new Vector4(0.74f, 0.31f, 0.16f, 1.0f);
         }
@@ -620,7 +630,13 @@ public sealed partial class ConfigWindow {
         return new Vector4(0.40f, 0.17f, 0.28f, 1.0f);
     }
 
-    private static Vector4 GetSubsectionTitleColor(string title) {
+    private Vector4 GetSubsectionTitleColor(string title) {
+        // 导入样式：统一用调色板 Header 色
+        if (this.config.ActiveThemePreset == ThemePreset.Imported
+            && this.config.ImportedStyleColors is { Count: > 0 }) {
+            return this.GetPageAccentColor(ConfigPage.目标情报);
+        }
+
         if (title.Contains("技能", StringComparison.Ordinal)
             || title.Contains("独立监控", StringComparison.Ordinal)
             || title.Contains("一键添加", StringComparison.Ordinal)
@@ -712,24 +728,28 @@ public sealed partial class ConfigWindow {
             this.saveConfig();
         }
 
+        var styleBorder = ImGui.GetStyle().Colors[(int)ImGuiCol.Border];
+        var styleFrameBg = ImGui.GetStyle().Colors[(int)ImGuiCol.FrameBg];
+        var styleSliderGrab = ImGui.GetStyle().Colors[(int)ImGuiCol.SliderGrab];
+        var styleText = ImGui.GetStyle().Colors[(int)ImGuiCol.Text];
         var borderColor = hovered
-            ? new Vector4(0.62f, 0.34f, 0.46f, 0.92f)
-            : new Vector4(0.38f, 0.20f, 0.28f, 0.82f);
+            ? WithAlpha(styleSliderGrab, 0.92f)
+            : WithAlpha(styleBorder, 0.82f);
         var fillColor = value
-            ? new Vector4(0.84f, 0.48f, 0.66f, active ? 0.92f : 0.82f)
+            ? WithAlpha(styleSliderGrab, active ? 0.92f : 0.82f)
             : hovered
-                ? new Vector4(1.0f, 0.965f, 0.975f, 0.92f)
-                : new Vector4(1.0f, 0.985f, 0.990f, 0.72f);
+                ? WithAlpha(styleFrameBg, 0.92f)
+                : WithAlpha(styleFrameBg, 0.72f);
 
         drawList.AddRectFilled(boxMin, boxMax, ImGui.GetColorU32(fillColor), 4.0f);
         drawList.AddRect(boxMin, boxMax, ImGui.GetColorU32(borderColor), 4.0f, (ImDrawFlags)0, 1.2f);
         if (value) {
-            var checkColor = ImGui.GetColorU32(new Vector4(1.0f, 0.98f, 0.94f, 1.0f));
+            var checkColor = ImGui.GetColorU32(WithAlpha(styleFrameBg, 1.0f));
             drawList.AddLine(boxMin + new Vector2(4.0f, 8.5f), boxMin + new Vector2(7.0f, 11.5f), checkColor, 1.8f);
             drawList.AddLine(boxMin + new Vector2(7.0f, 11.5f), boxMin + new Vector2(12.5f, 5.0f), checkColor, 1.8f);
         }
 
-        drawList.AddText(ImGui.GetFont(), ImGui.GetFontSize(), textPos, ImGui.GetColorU32(new Vector4(0.43f, 0.27f, 0.34f, 1.0f)), label);
+        drawList.AddText(ImGui.GetFont(), ImGui.GetFontSize(), textPos, ImGui.GetColorU32(styleText), label);
     }
 
     private void DrawSegmentedSelector(string label, string id, int currentValue, Action<int> setter, params (string Label, int Value)[] options) {
@@ -747,7 +767,7 @@ public sealed partial class ConfigWindow {
 
         ImGui.SetCursorPosX(rowStartX);
         ImGui.AlignTextToFramePadding();
-        ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.48f, 0.30f, 0.36f, 1.0f));
+        ImGui.PushStyleColor(ImGuiCol.Text, ImGui.GetStyle().Colors[(int)ImGuiCol.Text]);
         ImGui.TextUnformatted(label);
         ImGui.PopStyleColor();
 
@@ -757,15 +777,18 @@ public sealed partial class ConfigWindow {
             ImGui.SetCursorPosX(rowStartX);
         }
 
+        var styleText = ImGui.GetStyle().Colors[(int)ImGuiCol.Text];
+        var styleButton = ImGui.GetStyle().Colors[(int)ImGuiCol.Button];
+        var styleFrameBg = ImGui.GetStyle().Colors[(int)ImGuiCol.FrameBg];
         for (var index = 0; index < options.Length; index++) {
             var option = options[index];
             var selected = currentValue == option.Value;
             var buttonTextColor = selected
-                ? new Vector4(1.0f, 0.985f, 0.930f, 1.0f)
-                : new Vector4(0.52f, 0.36f, 0.42f, 0.86f);
+                ? WithAlpha(styleFrameBg, 1.0f)
+                : WithAlpha(styleText, 0.86f);
             var buttonColor = selected
                 ? WithAlpha(accentColor, 0.72f)
-                : new Vector4(1.0f, 0.970f, 0.965f, 0.88f);
+                : WithAlpha(styleButton, 0.88f);
             var buttonHoveredColor = selected
                 ? WithAlpha(accentColor, 0.88f)
                 : WithAlpha(accentColor, 0.24f);
@@ -895,7 +918,7 @@ public sealed partial class ConfigWindow {
         return new Vector4(0.70f, 0.34f, 0.18f, 1.0f);
     }
 
-    private static void DrawTargetInfoSubsection(string title) {
+    private void DrawTargetInfoSubsection(string title) {
         ImGui.Spacing();
         var titleColor = GetSubsectionTitleColor(title);
         var drawList = ImGui.GetWindowDrawList();
@@ -989,7 +1012,7 @@ public sealed partial class ConfigWindow {
     }
 
     private void DrawHudScaleCombo(string label, float currentScale, Action<float> setter) {
-        DrawInlineHudScaleCombo(label, label, currentScale, setter, new Vector4(0.48f, 0.30f, 0.36f, 1.0f));
+        DrawInlineHudScaleCombo(label, label, currentScale, setter, null);
     }
 
     private void DrawInlineFrameLabel(string label, Vector4? labelColor = null) {

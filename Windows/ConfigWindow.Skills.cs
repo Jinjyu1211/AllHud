@@ -114,37 +114,39 @@ public sealed partial class ConfigWindow {
         ImGui.Unindent(10.0f);
         ImGui.Dummy(new Vector2(1.0f, 4.0f));
 
-        // 卡片背景
+        // 卡片背景（颜色取自 style，便于导入样式接管）
         var cardMax = new Vector2(cardMin.X + availWidth, ImGui.GetCursorScreenPos().Y);
         var cardHeight = cardMax.Y - cardMin.Y;
         if (cardHeight > 0.0f) {
+            var styleChildBg = ImGui.GetStyle().Colors[(int)ImGuiCol.ChildBg];
+            var styleBorder = ImGui.GetStyle().Colors[(int)ImGuiCol.Border];
             drawList.ChannelsSetCurrent(0);
             drawList.AddRectFilled(
                 cardMin + new Vector2(0.0f, 5.0f),
                 cardMax + new Vector2(0.0f, 8.0f),
-                ImGui.GetColorU32(new Vector4(0.35f, 0.16f, 0.22f, 0.11f)),
+                ImGui.GetColorU32(WithAlpha(styleBorder, 0.11f)),
                 7.0f);
             drawList.AddRectFilled(
                 cardMin + new Vector2(0.0f, 2.0f),
                 cardMax + new Vector2(0.0f, 4.0f),
-                ImGui.GetColorU32(new Vector4(0.45f, 0.22f, 0.28f, 0.045f)),
+                ImGui.GetColorU32(WithAlpha(styleBorder, 0.045f)),
                 7.0f);
             drawList.AddRectFilled(
                 cardMin,
                 cardMax + new Vector2(0.0f, 2.0f),
-                ImGui.GetColorU32(new Vector4(1.0f, 0.978f, 0.984f, 0.92f)),
+                ImGui.GetColorU32(WithAlpha(styleChildBg, 0.92f)),
                 7.0f);
             drawList.AddRect(
                 cardMin,
                 cardMax + new Vector2(0.0f, 2.0f),
-                ImGui.GetColorU32(new Vector4(0.955f, 0.700f, 0.760f, 0.42f)),
+                ImGui.GetColorU32(WithAlpha(styleBorder, 0.42f)),
                 7.0f,
                 (ImDrawFlags)0,
                 1.0f);
             drawList.AddLine(
                 cardMin + new Vector2(10.0f, 1.0f),
                 new Vector2(cardMax.X - 10.0f, cardMin.Y + 1.0f),
-                ImGui.GetColorU32(new Vector4(1.0f, 1.0f, 1.0f, 0.85f)),
+                ImGui.GetColorU32(WithAlpha(styleChildBg, 0.85f)),
                 1.0f);
             drawList.AddRectFilled(
                 cardMin + new Vector2(0.0f, 12.0f),
@@ -371,7 +373,7 @@ public sealed partial class ConfigWindow {
         ];
     }
 
-    private static void DrawActionCategoryHeader(CooldownGroup group, int count, string? labelOverride = null) {
+    private void DrawActionCategoryHeader(CooldownGroup group, int count, string? labelOverride = null) {
         DrawTargetInfoSubsection($"{labelOverride ?? GetCooldownGroupLabel(group)} ({count})");
     }
 
@@ -701,7 +703,7 @@ public sealed partial class ConfigWindow {
     }
 
     private static void DrawSkillHintText(string text) {
-        ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.48f, 0.36f, 0.54f, 0.82f));
+        ImGui.PushStyleColor(ImGuiCol.Text, WithAlpha(ImGui.GetStyle().Colors[(int)ImGuiCol.Text], 0.82f));
         ImGui.TextUnformatted(text);
         ImGui.PopStyleColor();
     }

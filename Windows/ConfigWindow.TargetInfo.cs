@@ -99,41 +99,58 @@ public sealed partial class ConfigWindow {
 
     private void DrawAppearancePage() {
         DrawSectionCard("外观主题", () => {
-            DrawTargetInfoSubsection("样式预设");
-            if (this.config.ImportedStyleColors is { Count: > 0 }) {
+            DrawTargetInfoSubsection("主题方案");
+            var preset = (int)this.config.ActiveThemePreset;
+            var hasImported = this.config.ImportedStyleColors is { Count: > 0 };
+            DrawSegmentedSelector("当前方案", "theme_preset", preset, v => {
+                this.config.ActiveThemePreset = (ThemePreset)v;
+                this.saveConfig();
+            }, ("默认粉白", 0), ("自定义主题", 1), ("导入样式", 2));
+
+            if (this.config.ActiveThemePreset == ThemePreset.Imported && !hasImported) {
+                ImGui.TextColored(new Vector4(1.0f, 0.5f, 0.5f, 1.0f), "尚未导入样式，将回退到默认主题。请先从下方导入。");
+            }
+
+            ImGui.Spacing();
+            ImGui.Separator();
+            ImGui.Spacing();
+
+            DrawTargetInfoSubsection("样式预设导入");
+            if (hasImported) {
                 ImGui.TextColored(new Vector4(0.6f, 0.9f, 1.0f, 1.0f), $"已导入: {this.config.ImportedStyleName ?? "未命名"}");
                 ImGui.SameLine();
                 if (ImGui.Button("清除导入样式")) {
                     this.config.ImportedStyleColors = null;
                     this.config.ImportedStyleVars = null;
                     this.config.ImportedStyleName = null;
+                    if (this.config.ActiveThemePreset == ThemePreset.Imported) {
+                        this.config.ActiveThemePreset = ThemePreset.Default;
+                    }
                     this.saveConfig();
                 }
-                ImGui.TextDisabled("导入样式优先于下方自定义主题。从剪贴板粘贴 DS1 开头的样式码。");
+                ImGui.TextDisabled("导入样式可在上方主题方案中切换使用。");
             } else {
                 if (ImGui.Button("从剪贴板导入样式")) {
                     var clip = ImGui.GetClipboardText();
-                    var preset = StylePreset.Decode(clip);
-                    if (preset != null && preset.Colors.Count > 0) {
-                        this.config.ImportedStyleColors = preset.Colors;
-                        this.config.ImportedStyleVars = preset.ToStyleVars();
-                        this.config.ImportedStyleName = preset.Name;
+                    var preset2 = StylePreset.Decode(clip);
+                    if (preset2 != null && preset2.Colors.Count > 0) {
+                        this.config.ImportedStyleColors = preset2.Colors;
+                        this.config.ImportedStyleVars = preset2.ToStyleVars();
+                        this.config.ImportedStyleName = preset2.Name;
                         this.saveConfig();
                     }
                 }
                 ImGui.TextDisabled("支持导入 Dalamud 样式预设（DS1 开头的压缩码）。");
             }
 
-            ImGui.Separator();
-
-            DrawCheckbox("启用自定义主题", nameof(this.config.CustomThemeEnabled), this.config.CustomThemeEnabled, value => this.config.CustomThemeEnabled = value);
-            ImGui.TextDisabled("关闭时使用默认粉白主题。仅影响本设置窗口配色。");
-
-            if (!this.config.CustomThemeEnabled) {
+            if (this.config.ActiveThemePreset != ThemePreset.Custom) {
                 return;
             }
 
-            DrawTargetInfoSubsection("颜色");
+            ImGui.Spacing();
+            ImGui.Separator();
+
+            DrawTargetInfoSubsection("自定义颜色");
             DrawColorPicker("强调色", this.config.CustomThemeAccentColor, value => this.config.CustomThemeAccentColor = value);
             DrawColorPicker("背景色", this.config.CustomThemeBackgroundColor, value => this.config.CustomThemeBackgroundColor = value);
             DrawColorPicker("文字色", this.config.CustomThemeTextColor, value => this.config.CustomThemeTextColor = value);

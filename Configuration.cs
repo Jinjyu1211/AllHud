@@ -3,8 +3,14 @@ using System.Numerics;
 
 namespace AllHud;
 
+public enum ThemePreset {
+    Default,
+    Custom,
+    Imported,
+}
+
 public sealed class Configuration : IPluginConfiguration {
-    private const int CurrentVersion = 74;
+    private const int CurrentVersion = 75;
 
     public const string TaskBarComponentTime = "time";
     public const string TaskBarComponentLocalTime = "local_time";
@@ -166,6 +172,9 @@ public sealed class Configuration : IPluginConfiguration {
     public Dictionary<string, Vector4>? ImportedStyleColors { get; set; }
     public Dictionary<string, float>? ImportedStyleVars { get; set; }
     public string? ImportedStyleName { get; set; }
+    public Vector4? CustomThemeNavBgColor { get; set; }
+    public Vector4? CustomThemeNavBorderColor { get; set; }
+    public ThemePreset ActiveThemePreset { get; set; } = ThemePreset.Default;
     public List<string> HiddenImGuiWindowNames { get; set; } = [];
     public List<string> TaskBarComponentOrder { get; set; } = [.. DefaultTaskBarComponentOrder];
     public List<string> TaskBarLeftComponentOrder { get; set; } = [];
@@ -635,6 +644,24 @@ public sealed class Configuration : IPluginConfiguration {
 
         if (Version < 73) {
             CustomCurrencies = [];
+            changed = true;
+        }
+
+        if (Version < 74) {
+            CustomThemeNavBgColor = null;
+            CustomThemeNavBorderColor = null;
+            ImportedStyleColors = null;
+            ImportedStyleVars = null;
+            ImportedStyleName = null;
+            changed = true;
+        }
+
+        if (Version < 75) {
+            ActiveThemePreset = ImportedStyleColors is { Count: > 0 }
+                ? ThemePreset.Imported
+                : CustomThemeEnabled
+                    ? ThemePreset.Custom
+                    : ThemePreset.Default;
             changed = true;
         }
 

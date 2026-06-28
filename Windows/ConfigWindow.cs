@@ -159,9 +159,12 @@ public sealed partial class ConfigWindow {
         // ── 定制主题 ──
         PushCustomStyle();
 
+        var useImported = this.config.ActiveThemePreset == ThemePreset.Imported
+                          && this.config.ImportedStyleColors is { Count: > 0 };
         ImGui.SetNextWindowSize(new Vector2(760.0f, 620.0f), ImGuiCond.FirstUseEver);
         var isOpen = this.IsOpen;
-        if (!ImGui.Begin("AllHud 设置", ref isOpen, ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoCollapse)) {
+        var windowFlags = useImported ? ImGuiWindowFlags.None : ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoCollapse;
+        if (!ImGui.Begin("AllHud 设置", ref isOpen, windowFlags)) {
             this.IsOpen = isOpen;
             PopCustomStyle();
             ImGui.End();
@@ -170,32 +173,55 @@ public sealed partial class ConfigWindow {
 
         this.IsOpen = isOpen;
 
-        // ── 定制标题栏 ──
-        DrawCustomTitleBar();
+        if (!useImported) {
+            // ── 定制标题栏 ──
+            DrawCustomTitleBar();
+        }
 
         // ── 左侧导航 + 内容区 ──
         var navWidth = 156.0f;
-        var hasImported = this.config.ImportedStyleColors is { Count: > 0 };
-        if (!hasImported) {
-            ImGui.PushStyleColor(ImGuiCol.ChildBg, new Vector4(0.982f, 0.900f, 0.918f, 1.0f));
-            ImGui.PushStyleColor(ImGuiCol.Border, new Vector4(0.925f, 0.660f, 0.725f, 0.50f));
+
+        // 自适应导航/内容区颜色
+        var navBg = new Vector4(0.982f, 0.900f, 0.918f, 1.0f);
+        var navBorder = new Vector4(0.925f, 0.660f, 0.725f, 0.50f);
+        var contentBg = new Vector4(1.0f, 0.972f, 0.978f, 1.0f);
+        var contentBorder = new Vector4(0.940f, 0.720f, 0.780f, 0.42f);
+
+        if (useImported) {
+            // 导入样式：优先从调色板取 ChildBg/Border
+            var imported = this.config.ImportedStyleColors!;
+            if (imported.TryGetValue("ChildBg", out var cb)) contentBg = cb;
+            if (imported.TryGetValue("Border", out var cbo)) contentBorder = WithAlpha(cbo, 0.5f);
+            navBg = WithAlpha(contentBg, 0.85f);
+            navBorder = WithAlpha(contentBorder, 0.35f);
+        } else if (this.config.ActiveThemePreset == ThemePreset.Custom) {
+            // 自定义主题：用户配置优先，否则由强调色派生
+            var accent = this.config.CustomThemeAccentColor;
+            var bg = this.config.CustomThemeBackgroundColor;
+            if (this.config.CustomThemeNavBgColor.HasValue) navBg = this.config.CustomThemeNavBgColor.Value;
+            else navBg = WithAlpha(bg, 0.82f);
+            if (this.config.CustomThemeNavBorderColor.HasValue) navBorder = this.config.CustomThemeNavBorderColor.Value;
+            else navBorder = WithAlpha(accent, 0.45f);
+            contentBg = WithAlpha(bg, 0.96f);
+            contentBorder = WithAlpha(accent, 0.35f);
         }
+
+        ImGui.PushStyleColor(ImGuiCol.ChildBg, navBg);
+        ImGui.PushStyleColor(ImGuiCol.Border, navBorder);
         ImGui.BeginChild("config_nav", new Vector2(navWidth, -1.0f), true);
         DrawNavSection();
         ImGui.EndChild();
-        if (!hasImported) ImGui.PopStyleColor(2);
+        ImGui.PopStyleColor(2);
 
         ImGui.SameLine();
 
-        if (!hasImported) {
-            ImGui.PushStyleColor(ImGuiCol.ChildBg, new Vector4(1.0f, 0.972f, 0.978f, 1.0f));
-            ImGui.PushStyleColor(ImGuiCol.Border, new Vector4(0.940f, 0.720f, 0.780f, 0.42f));
-        }
+        ImGui.PushStyleColor(ImGuiCol.ChildBg, contentBg);
+        ImGui.PushStyleColor(ImGuiCol.Border, contentBorder);
         ImGui.BeginChild("config_content", new Vector2(0.0f, -1.0f), true);
         ImGui.Dummy(new Vector2(1.0f, 4.0f));
         DrawSelectedPage();
         ImGui.EndChild();
-        if (!hasImported) ImGui.PopStyleColor(2);
+        ImGui.PopStyleColor(2);
 
         ImGui.End();
         PopCustomStyle();
@@ -251,7 +277,9 @@ public sealed partial class ConfigWindow {
         this.pushedColorCount = 0;
         this.pushedVarCount = 0;
 
-        if (this.config.ImportedStyleColors is { Count: > 0 }) {
+        // 导入样式：完全由调色板控制
+        if (this.config.ActiveThemePreset == ThemePreset.Imported
+            && this.config.ImportedStyleColors is { Count: > 0 }) {
             this.PushImportedStyle();
             return;
         }
@@ -270,7 +298,7 @@ public sealed partial class ConfigWindow {
         var sliderGrab = new Vector4(0.74f, 0.34f, 0.52f, 1.0f);
         var sliderGrabActive = new Vector4(0.66f, 0.26f, 0.46f, 1.0f);
 
-        if (this.config.CustomThemeEnabled) {
+        if (this.config.ActiveThemePreset == ThemePreset.Custom) {
             var accent = this.config.CustomThemeAccentColor;
             windowBg = this.config.CustomThemeBackgroundColor;
             childBg = this.config.CustomThemeBackgroundColor;
@@ -287,52 +315,38 @@ public sealed partial class ConfigWindow {
             sliderGrabActive = accent;
         }
 
-        ImGui.PushStyleColor(ImGuiCol.WindowBg, windowBg);
-        ImGui.PushStyleColor(ImGuiCol.ChildBg, childBg);
+        void PushColor(ImGuiCol col, Vector4 color) {
+            ImGui.PushStyleColor(col, color);
+            this.pushedColorCount++;
+        }
 
-        // 输入框背景
-        ImGui.PushStyleColor(ImGuiCol.FrameBg, new Vector4(1.0f, 0.985f, 0.980f, 1.0f));
-        ImGui.PushStyleColor(ImGuiCol.FrameBgHovered, new Vector4(0.985f, 0.905f, 0.920f, 1.0f));
-        ImGui.PushStyleColor(ImGuiCol.FrameBgActive, new Vector4(0.955f, 0.795f, 0.835f, 1.0f));
-        ImGui.PushStyleColor(ImGuiCol.PopupBg, new Vector4(1.0f, 0.960f, 0.965f, 1.0f));
-
-        // 按钮
-        ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(1.0f, 0.985f, 0.980f, 1.0f));
-        ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.975f, 0.850f, 0.875f, 1.0f));
-        ImGui.PushStyleColor(ImGuiCol.ButtonActive, buttonActive);
-
-        // 可折叠标题 / 表头
-        ImGui.PushStyleColor(ImGuiCol.Header, new Vector4(0.965f, 0.840f, 0.870f, 1.0f));
-        ImGui.PushStyleColor(ImGuiCol.HeaderHovered, new Vector4(0.940f, 0.760f, 0.810f, 1.0f));
-        ImGui.PushStyleColor(ImGuiCol.HeaderActive, headerActive);
-
-        // 标签页
-        ImGui.PushStyleColor(ImGuiCol.Tab, new Vector4(0.990f, 0.950f, 0.955f, 1.0f));
-        ImGui.PushStyleColor(ImGuiCol.TabHovered, new Vector4(0.950f, 0.820f, 0.850f, 1.0f));
-        ImGui.PushStyleColor(ImGuiCol.TabActive, tabActive);
-
-        // 分隔线 / 边框
-        ImGui.PushStyleColor(ImGuiCol.Separator, separator);
-        ImGui.PushStyleColor(ImGuiCol.Border, border);
-
-        // 文字
-        ImGui.PushStyleColor(ImGuiCol.Text, text);
-
-        // 滚动条
-        ImGui.PushStyleColor(ImGuiCol.ScrollbarBg, new Vector4(0.940f, 0.850f, 0.860f, 0.35f));
-        ImGui.PushStyleColor(ImGuiCol.ScrollbarGrab, scrollbarGrab);
-        ImGui.PushStyleColor(ImGuiCol.ScrollbarGrabHovered, scrollbarGrabHovered);
-        ImGui.PushStyleColor(ImGuiCol.ScrollbarGrabActive, scrollbarGrabActive);
-
-        // 滑动条
-        ImGui.PushStyleColor(ImGuiCol.SliderGrab, sliderGrab);
-        ImGui.PushStyleColor(ImGuiCol.SliderGrabActive, sliderGrabActive);
-
-        // 隐藏缩放箭头（保留缩放功能）
-        ImGui.PushStyleColor(ImGuiCol.ResizeGrip, new Vector4(0.0f, 0.0f, 0.0f, 0.0f));
-        ImGui.PushStyleColor(ImGuiCol.ResizeGripHovered, new Vector4(0.0f, 0.0f, 0.0f, 0.0f));
-        ImGui.PushStyleColor(ImGuiCol.ResizeGripActive, new Vector4(0.0f, 0.0f, 0.0f, 0.0f));
-        // ── 样式变量 ──
+        PushColor(ImGuiCol.WindowBg, windowBg);
+        PushColor(ImGuiCol.ChildBg, childBg);
+        PushColor(ImGuiCol.FrameBg, new Vector4(1.0f, 0.985f, 0.980f, 1.0f));
+        PushColor(ImGuiCol.FrameBgHovered, new Vector4(0.985f, 0.905f, 0.920f, 1.0f));
+        PushColor(ImGuiCol.FrameBgActive, new Vector4(0.955f, 0.795f, 0.835f, 1.0f));
+        PushColor(ImGuiCol.PopupBg, new Vector4(1.0f, 0.960f, 0.965f, 1.0f));
+        PushColor(ImGuiCol.Button, new Vector4(1.0f, 0.985f, 0.980f, 1.0f));
+        PushColor(ImGuiCol.ButtonHovered, new Vector4(0.975f, 0.850f, 0.875f, 1.0f));
+        PushColor(ImGuiCol.ButtonActive, buttonActive);
+        PushColor(ImGuiCol.Header, new Vector4(0.965f, 0.840f, 0.870f, 1.0f));
+        PushColor(ImGuiCol.HeaderHovered, new Vector4(0.940f, 0.760f, 0.810f, 1.0f));
+        PushColor(ImGuiCol.HeaderActive, headerActive);
+        PushColor(ImGuiCol.Tab, new Vector4(0.990f, 0.950f, 0.955f, 1.0f));
+        PushColor(ImGuiCol.TabHovered, new Vector4(0.950f, 0.820f, 0.850f, 1.0f));
+        PushColor(ImGuiCol.TabActive, tabActive);
+        PushColor(ImGuiCol.Separator, separator);
+        PushColor(ImGuiCol.Border, border);
+        PushColor(ImGuiCol.Text, text);
+        PushColor(ImGuiCol.ScrollbarBg, new Vector4(0.940f, 0.850f, 0.860f, 0.35f));
+        PushColor(ImGuiCol.ScrollbarGrab, scrollbarGrab);
+        PushColor(ImGuiCol.ScrollbarGrabHovered, scrollbarGrabHovered);
+        PushColor(ImGuiCol.ScrollbarGrabActive, scrollbarGrabActive);
+        PushColor(ImGuiCol.SliderGrab, sliderGrab);
+        PushColor(ImGuiCol.SliderGrabActive, sliderGrabActive);
+        PushColor(ImGuiCol.ResizeGrip, new Vector4(0.0f, 0.0f, 0.0f, 0.0f));
+        PushColor(ImGuiCol.ResizeGripHovered, new Vector4(0.0f, 0.0f, 0.0f, 0.0f));
+        PushColor(ImGuiCol.ResizeGripActive, new Vector4(0.0f, 0.0f, 0.0f, 0.0f));
         ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, 4.0f);
         ImGui.PushStyleVar(ImGuiStyleVar.TabRounding, 6.0f);
         ImGui.PushStyleVar(ImGuiStyleVar.WindowRounding, 8.0f);
@@ -343,7 +357,6 @@ public sealed partial class ConfigWindow {
         ImGui.PushStyleVar(ImGuiStyleVar.FrameBorderSize, 1.0f);
         ImGui.PushStyleVar(ImGuiStyleVar.ChildRounding, 8.0f);
         ImGui.PushStyleVar(ImGuiStyleVar.ChildBorderSize, 1.0f);
-        this.pushedColorCount = 27;
         this.pushedVarCount = 10;
     }
 
@@ -551,7 +564,26 @@ public sealed partial class ConfigWindow {
         ImGui.Dummy(new Vector2(areaWidth, 0.0f));
     }
 
-    private static Vector4 GetPageAccentColor(ConfigPage page) {
+    private Vector4 GetPageAccentColor(ConfigPage page) {
+        // 导入样式：从调色板取主色调
+        if (this.config.ActiveThemePreset == ThemePreset.Imported
+            && this.config.ImportedStyleColors is { Count: > 0 }) {
+            var imported = this.config.ImportedStyleColors;
+            // 依次尝试 Header / TitleBgActive / Button / Accent
+            if (imported.TryGetValue("Header", out var c)) return c;
+            if (imported.TryGetValue("TitleBgActive", out c)) return c;
+            if (imported.TryGetValue("Button", out c)) return c;
+            if (imported.TryGetValue("Accent", out c)) return c;
+            // 兜底取任意第一个颜色
+            return imported.Values.FirstOrDefault();
+        }
+
+        // 自定义主题：使用用户强调色
+        if (this.config.ActiveThemePreset == ThemePreset.Custom) {
+            return this.config.CustomThemeAccentColor;
+        }
+
+        // 默认主题：硬编码
         return page switch {
             ConfigPage.目标情报 => new Vector4(0.78f, 0.34f, 0.18f, 1.0f),
             ConfigPage.状态栏 => new Vector4(0.24f, 0.54f, 0.32f, 1.0f),

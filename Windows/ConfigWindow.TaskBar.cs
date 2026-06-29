@@ -1042,17 +1042,13 @@ public sealed partial class ConfigWindow {
             ImGui.SameLine(0.0f, 18.0f);
         }
 
-        var allOptions = CurrencyDisplayOptions.Concat(
-            this.config.CustomCurrencies
-                .Where(c => c.Enabled && c.ItemId != 0)
-                .Select(c => new CurrencyDisplayOption(c.ItemId, c.Name))
-        ).ToList();
+        var allOptions = GetAllCurrencyOptionsForConfig();
 
         var selected = allOptions.FirstOrDefault(option => option.ItemId == this.config.TaskBarCurrencyItemId);
         var selectedName = selected.ItemId == 0 ? "金币" : selected.Name;
-        ImGui.SetNextItemWidth(Math.Min(180.0f, Math.Max(140.0f, settingsWidth)));
+        ImGui.SetNextItemWidth(Math.Min(220.0f, Math.Max(160.0f, settingsWidth)));
         if (ImGui.BeginCombo("##TaskBarCurrencyItem", selectedName)) {
-            foreach (var option in CurrencyDisplayOptions) {
+            foreach (var option in allOptions) {
                 var isSelected = option.ItemId == this.config.TaskBarCurrencyItemId;
                 if (ImGui.Selectable(option.Name, isSelected)) {
                     this.config.TaskBarCurrencyItemId = option.ItemId;
@@ -1064,24 +1060,48 @@ public sealed partial class ConfigWindow {
                 }
             }
 
-            if (this.config.CustomCurrencies.Any(c => c.Enabled && c.ItemId != 0)) {
-                ImGui.Separator();
-                ImGui.TextDisabled("自定义");
+            ImGui.EndCombo();
+        }
 
-                foreach (var custom in this.config.CustomCurrencies.Where(c => c.Enabled && c.ItemId != 0)) {
-                    var isSelected = custom.ItemId == this.config.TaskBarCurrencyItemId;
-                    if (ImGui.Selectable(custom.Name, isSelected)) {
-                        this.config.TaskBarCurrencyItemId = custom.ItemId;
-                        this.saveConfig();
-                    }
+        ImGui.Spacing();
+        DrawTargetInfoSubsection("弹窗显示的货币");
+        ImGui.TextDisabled("勾选要在货币弹窗中显示的货币。不勾选则显示全部。");
+        ImGui.Spacing();
 
-                    if (isSelected) {
-                        ImGui.SetItemDefaultFocus();
-                    }
+        var visible = this.config.VisibleCurrencyItemIds;
+        if (ImGui.Button("全选")) {
+            visible.Clear();
+            visible.AddRange(allOptions.Select(o => o.ItemId));
+            this.saveConfig();
+        }
+        ImGui.SameLine(0.0f, 6.0f);
+        if (ImGui.Button("全不选")) {
+            visible.Clear();
+            this.saveConfig();
+        }
+        ImGui.SameLine(0.0f, 6.0f);
+        if (ImGui.Button("恢复默认")) {
+            visible.Clear();
+            this.saveConfig();
+        }
+
+        ImGui.Spacing();
+
+        for (var i = 0; i < allOptions.Count; i++) {
+            var option = allOptions[i];
+            var isChecked = visible.Contains(option.ItemId);
+            if (ImGui.Checkbox($"{option.Name}##currency_visible_{i}", ref isChecked)) {
+                if (isChecked) {
+                    if (!visible.Contains(option.ItemId)) visible.Add(option.ItemId);
+                } else {
+                    visible.Remove(option.ItemId);
                 }
+                this.saveConfig();
             }
 
-            ImGui.EndCombo();
+            if (i % 2 == 0 && i < allOptions.Count - 1) {
+                ImGui.SameLine(0.0f, 12.0f);
+            }
         }
 
         ImGui.Spacing();

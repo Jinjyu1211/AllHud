@@ -52,6 +52,13 @@ public sealed partial class OverlayRenderer {
                     DrawGameIconImage(drawList, currency.IconId, rowMin + new Vector2(4.0f * scale, 3.0f * scale), rowMin + new Vector2(24.0f * scale, 23.0f * scale), true, true);
                 }
 
+                ImGui.SetCursorScreenPos(rowMin);
+                ImGui.InvisibleButton($"##currency_{currency.ItemId}", rowMax - rowMin);
+                if (ImGui.IsItemClicked()) {
+                    this.config.TaskBarCurrencyItemId = currency.ItemId;
+                    this.saveConfig();
+                }
+
                 ImGui.SetCursorScreenPos(rowMin + new Vector2(30.0f * scale, Math.Max(0.0f, (rowHeight - ImGui.GetTextLineHeight()) * 0.5f)));
                 ImGui.TextUnformatted($"{currency.Name}：{countText}");
                 ImGui.SetCursorScreenPos(new Vector2(rowMin.X, rowMax.Y + 3.0f * scale));

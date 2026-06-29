@@ -8,6 +8,7 @@ using Dalamud.Plugin.Services;
 using System.Numerics;
 using System.Runtime.InteropServices;
 using System.Text;
+using LuminaItem = Lumina.Excel.Sheets.Item;
 
 namespace AllHud.Windows;
 
@@ -87,20 +88,47 @@ public sealed partial class ConfigWindow {
     private readonly Dictionary<string, PendingCustomShortcutCommandRemoval> pendingCustomShortcutCommandRemovals = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, string> pendingQuickMenuItemRemovals = new(StringComparer.OrdinalIgnoreCase);
 
-    private static readonly CurrencyDisplayOption[] CurrencyDisplayOptions = [
-        new(1, "金币"),
-        new(29, "金碟币"),
-        new(21072, "探险币"),
-        new(28, "亚拉戈诗学神典石"),
-        new(25, "狼印章"),
-        new(26807, "双色宝石"),
-        new(27, "同盟徽章"),
-        new(10307, "百战徽章"),
-    ];
+    private List<CurrencyDisplayOption>? scannedCurrencyOptions;
+
+    private List<CurrencyDisplayOption> GetScannedCurrencyOptions() {
+        if (scannedCurrencyOptions is not null) return scannedCurrencyOptions;
+
+        var result = new List<CurrencyDisplayOption>();
+        try {
+            var sheet = this.dataManager.GetExcelSheet<LuminaItem>();
+            if (sheet is not null) {
+                foreach (var item in sheet) {
+                    if (item.ItemUICategory.RowId != 59) continue;
+                    var name = item.Name.ExtractText();
+                    if (string.IsNullOrWhiteSpace(name)) continue;
+                    result.Add(new CurrencyDisplayOption(item.RowId, name));
+                }
+            }
+        } catch {
+        }
+
+        if (!result.Any(c => c.ItemId == 1)) {
+            result.Insert(0, new(1, "金币"));
+        }
+
+        scannedCurrencyOptions = result;
+        return result;
+    }
+
+    private List<CurrencyDisplayOption> GetAllCurrencyOptionsForConfig() {
+        var result = new List<CurrencyDisplayOption>(GetScannedCurrencyOptions());
+        foreach (var custom in this.config.CustomCurrencies) {
+            if (custom.Enabled && custom.ItemId != 0 && !result.Any(c => c.ItemId == custom.ItemId)) {
+                result.Add(new(custom.ItemId, custom.Name));
+            }
+        }
+        return result;
+    }
     private readonly Configuration config;
     private readonly CombatStateTracker combatState;
     private readonly ITextureProvider textureProvider;
     private readonly IDalamudPluginInterface pluginInterface;
+    private readonly IDataManager dataManager;
     private readonly Action saveConfig;
     private readonly List<Dalamud.Plugin.IExposedPlugin> installedPluginSelectionCache = [];
     private readonly Dictionary<string, Dalamud.Plugin.IExposedPlugin> installedPluginSelectionByInternalName = new(StringComparer.OrdinalIgnoreCase);
@@ -121,11 +149,12 @@ public sealed partial class ConfigWindow {
     private TaskBarPage selectedTaskBarPage = TaskBarPage.任务栏;
     private int selectedAuxiliaryBarIndex;
 
-    public ConfigWindow(Configuration config, CombatStateTracker combatState, ITextureProvider textureProvider, IDalamudPluginInterface pluginInterface, Action saveConfig) {
+    public ConfigWindow(Configuration config, CombatStateTracker combatState, ITextureProvider textureProvider, IDalamudPluginInterface pluginInterface, IDataManager dataManager, Action saveConfig) {
         this.config = config;
         this.combatState = combatState;
         this.textureProvider = textureProvider;
         this.pluginInterface = pluginInterface;
+        this.dataManager = dataManager;
         this.saveConfig = saveConfig;
     }
 

@@ -864,16 +864,34 @@ public sealed partial class OverlayRenderer {
 
     private sealed record CurrencyDisplayInfo(uint ItemId, string Name, uint IconId);
 
-    private static readonly CurrencyDisplayInfo[] CurrencyDisplayOptions = [
-        new(CurrencyItemGil, "金币", 0),
-        new(CurrencyItemMgp, "金碟币", 0),
-        new(CurrencyItemVenture, "探险币", 0),
-        new(CurrencyItemPoetics, "亚拉戈诗学神典石", 0),
-        new(CurrencyItemWolfMarks, "狼印章", 0),
-        new(CurrencyItemBiColorGemstones, "双色宝石", 0),
-        new(CurrencyItemAlliedSeals, "同盟徽章", 0),
-        new(CurrencyItemCenturioSeals, "百战徽章", 0),
-    ];
+    private List<CurrencyDisplayInfo>? scannedCurrencies;
+
+    private const uint CurrencyItemUICategoryId = 59;
+
+    private List<CurrencyDisplayInfo> GetScannedCurrencies() {
+        if (scannedCurrencies is not null) return scannedCurrencies;
+
+        var result = new List<CurrencyDisplayInfo>();
+        try {
+            var sheet = this.dataManager.GetExcelSheet<LuminaItem>();
+            if (sheet is not null) {
+                foreach (var item in sheet) {
+                    if (item.ItemUICategory.RowId != CurrencyItemUICategoryId) continue;
+                    var name = GetExcelText(item.Name.ExtractText());
+                    if (string.IsNullOrWhiteSpace(name)) continue;
+                    result.Add(new CurrencyDisplayInfo(item.RowId, name, item.Icon));
+                }
+            }
+        } catch {
+        }
+
+        if (!result.Any(c => c.ItemId == CurrencyItemGil)) {
+            result.Insert(0, new(CurrencyItemGil, "金币", 0));
+        }
+
+        scannedCurrencies = result;
+        return result;
+    }
 
     private CurrencyDisplayInfo GetSelectedCurrencyDisplayInfo() {
         var allOptions = GetAllCurrencyOptions().ToList();
@@ -881,7 +899,7 @@ public sealed partial class OverlayRenderer {
             ? this.config.TaskBarCurrencyItemId
             : CurrencyItemGil;
 
-        var fallback = allOptions.First(option => option.ItemId == itemId);
+        var fallback = allOptions.FirstOrDefault(option => option.ItemId == itemId, new CurrencyDisplayInfo(CurrencyItemGil, "金币", 0));
         try {
             if (this.dataManager.GetExcelSheet<LuminaItem>().TryGetRow(itemId, out var item)) {
                 var name = GetExcelText(item.Name.ExtractText());
@@ -894,7 +912,12 @@ public sealed partial class OverlayRenderer {
     }
 
     private IEnumerable<CurrencyDisplayInfo> GetCurrencyDisplayOptions() {
+        var visible = this.config.VisibleCurrencyItemIds;
+        var showAll = visible is null || visible.Count == 0;
+        var hasSelected = false;
         foreach (var option in GetAllCurrencyOptions()) {
+            if (!showAll && visible is not null && !visible.Contains(option.ItemId)) continue;
+            hasSelected = true;
             var resolved = option;
             try {
                 if (this.dataManager.GetExcelSheet<LuminaItem>().TryGetRow(option.ItemId, out var item)) {
@@ -906,10 +929,14 @@ public sealed partial class OverlayRenderer {
 
             yield return resolved;
         }
+
+        if (!hasSelected) {
+            yield return GetSelectedCurrencyDisplayInfo();
+        }
     }
 
     private IEnumerable<CurrencyDisplayInfo> GetAllCurrencyOptions() {
-        foreach (var option in CurrencyDisplayOptions) {
+        foreach (var option in GetScannedCurrencies()) {
             yield return option;
         }
 

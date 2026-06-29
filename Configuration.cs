@@ -10,7 +10,7 @@ public enum ThemePreset {
 }
 
 public sealed class Configuration : IPluginConfiguration {
-    private const int CurrentVersion = 75;
+    private const int CurrentVersion = 76;
 
     public const string TaskBarComponentTime = "time";
     public const string TaskBarComponentLocalTime = "local_time";
@@ -135,6 +135,7 @@ public sealed class Configuration : IPluginConfiguration {
     public bool TaskBarShowCurrency { get; set; }
     public uint TaskBarCurrencyItemId { get; set; } = 1;
     public bool TaskBarCurrencyShowName { get; set; }
+    public List<uint> VisibleCurrencyItemIds { get; set; } = [];
     public string TaskBarPluginShortcutInternalName { get; set; } = string.Empty;
     public List<string> PluginListInternalNames { get; set; } = [];
     public Dictionary<string, string> PluginShortcutInternalNames { get; set; } = [];
@@ -677,6 +678,11 @@ public sealed class Configuration : IPluginConfiguration {
                 : CustomThemeEnabled
                     ? ThemePreset.Custom
                     : ThemePreset.Default;
+            changed = true;
+        }
+
+        if (Version < 76) {
+            VisibleCurrencyItemIds ??= [];
             changed = true;
         }
 

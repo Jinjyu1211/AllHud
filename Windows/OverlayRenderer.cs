@@ -57,13 +57,6 @@ public sealed partial class OverlayRenderer {
     private const string GearsetPopupId = "AllHud 套装";
     private const string CurrencyPopupId = "AllHud 货币";
     private const uint CurrencyItemGil = 1;
-    private const uint CurrencyItemMgp = 29;
-    private const uint CurrencyItemVenture = 21072;
-    private const uint CurrencyItemWolfMarks = 25;
-    private const uint CurrencyItemPoetics = 28;
-    private const uint CurrencyItemBiColorGemstones = 26807;
-    private const uint CurrencyItemAlliedSeals = 27;
-    private const uint CurrencyItemCenturioSeals = 10307;
     private const uint BlueMageClassJobId = 36;
     private const string EmbeddedDalamudIconPngBase64 = "iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAQsSURBVFhHxZbfaxNZFMezLkXdZRUqUkV3NTLVJkMSrIUkahIZ6kNbC6KyXasi9kGIixalv2wSFbfrg/+A4IM+iA+++OSD4pMiqOCDCCIi6kxSY42m02lB2W3JLJ+bpkyvWWstjQcCmTP33HPu9/s9Z67LVWH71OxaaGqe3bJ/3uxTs+tHEi7x2D9YUSWW2+3rltfMm1la3VYrqjSMRX7+5dXxmvFcm3JGXjMvZm1b8durnpqCtXmt24rVanrXylw2rlzj3WioapEZWV0tx8zJFt8sLBjdXrMUfgfjyvVsXLly/491VUbnytfDjWoHp4eCUa16uRlS/HL8nMwMBTaaMXWnOGnPmsLIFk8TkOs9a8aHG9WDIEGBw0H3BtbK8d9sJDGSXsvU/Pv1/vU2/ykCeD/s8p6YLGic5GhhJKqGcm3ePnmfWRtQomoSGinfRPbI5qt6yl/I7/AcgfPcvvozJMx2rL0g1sZqd5AcOnh27kVxzuf/NU4Lp4hLT0XsTHf43tt4/UUKMBIBe6ij4Xym0/0Ajmk7hEYcFIhi4so14p17mjF1Lyg5fZ8ZLfTuQMMAHAOrntTecFLjVNAmsZEMp9+3eftJxDM8p7u8zymU9dBDLAdw7sv6GYfRh13eY4Lfsy02P6DVz7aMcaJ0IvpUJD0VtM2wqpBEFJQI2NAx1L7u3OCf7hsoHlqc0Jsx9fd8s+8wiMiUCBN9Ggps1Af22Jx+tGnZTxQA7HBGMLxChQwra9Pd9Y/hn+TATEtCC7E884MqEHLGFjcIVS3S/2639YE9/5Z4JJhirMiqVYiJ0xvJcB6/M5b3xknfR7QhEEn5JugOvc+dh2s6gDaFVg5Isc744iaxWo0+lv34JqkYA3L5PcMGOrLx0GWRPOm1QErE9a+3M0eVW2JAHfr1EgcrKz6EQ3Wy/0tWgjLdG3zBL3MscAehkoAPDyihi3Sn+4l+srZAUcyGz7gXLabVbZ3mnMHMsLqCk2e6wg/RAx2hpyITiBAqSIKQRTfE1L0gIdRfbhSnE82PZN+XDBjRAqcd7AzcBmrRMcyIrvDDkaCnjnUUg25QPu1ZpGP13embadXLZTXPZPrp1mH9dOu7Un9DH8KkAFBBkMIfVRpoQwoGDeig0GkCnu0HgmFDVzg34RCvB5oEx0zF6REul9HreWkkAv+IEZ7yTbDH1MuvnseTZiRanplb3KrTB8cMKoqQBSYGV2/wBaiANLSw3rlmVsac4NtfeiaB/lfrR5LLswHoxcTs2/S+5Ct9P+RCv9ooANFyIniFDp7LIYn4RjT/digq+WhR8b2YZctPGaIS07I4MW0EKK8pmbiQStcvihFinOu17Fsh5NpGAbK/Yla8pvv3l6OsIkYn0K7frYDiXTKcl/0VM74Fzq6ouM14FZtvk6doRY0J+t3Eh5W7hv0Hk1mQnvHVoeMAAAAASUVORK5CYII=";
 

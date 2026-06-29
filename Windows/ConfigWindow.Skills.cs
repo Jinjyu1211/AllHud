@@ -178,7 +178,7 @@ public sealed partial class ConfigWindow {
     }
 
     private static void DrawJobSkillSelectorDivider() {
-        DrawFullContentWidthDivider(4.0f, new Vector4(0.93f, 0.58f, 0.74f, 0.22f), height: 9.0f);
+        DrawFullContentWidthDivider(4.0f, WithAlpha(ImGui.GetStyle().Colors[(int)ImGuiCol.Separator], 0.22f), height: 9.0f);
     }
 
     private int GetSelectedJobCatalogIndex() {
@@ -267,7 +267,7 @@ public sealed partial class ConfigWindow {
         drawList.AddLine(
             new Vector2(lineBounds.Left, lineY),
             new Vector2(lineBounds.Right, lineY),
-            ImGui.GetColorU32(new Vector4(0.92f, 0.68f, 0.76f, 0.34f)),
+            ImGui.GetColorU32(WithAlpha(ImGui.GetStyle().Colors[(int)ImGuiCol.Separator], 0.34f)),
             1.0f);
     }
 
@@ -287,13 +287,17 @@ public sealed partial class ConfigWindow {
             selected = true;
         }
 
+        var styleTab = ImGui.GetStyle().Colors[(int)ImGuiCol.Tab];
+        var styleTabHovered = ImGui.GetStyle().Colors[(int)ImGuiCol.TabHovered];
+        var styleTabActive = ImGui.GetStyle().Colors[(int)ImGuiCol.TabActive];
+        var styleText = ImGui.GetStyle().Colors[(int)ImGuiCol.Text];
         var fillColor = selected
-            ? new Vector4(1.0f, 0.975f, 0.980f, 0.96f)
+            ? WithAlpha(styleTabActive, 0.96f)
             : hovered
-                ? new Vector4(1.0f, 0.945f, 0.960f, 0.82f)
-                : new Vector4(1.0f, 0.955f, 0.965f, 0.58f);
+                ? WithAlpha(styleTabHovered, 0.82f)
+                : WithAlpha(styleTab, 0.58f);
         var borderColor = selected ? WithAlpha(accentColor, 0.62f) : WithAlpha(accentColor, hovered ? 0.36f : 0.22f);
-        var textColor = selected ? WithAlpha(accentColor, 1.0f) : new Vector4(0.46f, 0.30f, 0.36f, 0.92f);
+        var textColor = selected ? WithAlpha(accentColor, 1.0f) : WithAlpha(styleText, 0.92f);
 
         drawList.AddRectFilled(buttonMin, buttonMax, ImGui.GetColorU32(fillColor), 5.0f, ImDrawFlags.RoundCornersTop);
         drawList.AddRect(buttonMin, buttonMax, ImGui.GetColorU32(borderColor), 5.0f, ImDrawFlags.RoundCornersTop, selected ? 1.2f : 1.0f);
@@ -301,7 +305,7 @@ public sealed partial class ConfigWindow {
             drawList.AddLine(
                 new Vector2(buttonMin.X + 1.0f, buttonMax.Y),
                 new Vector2(buttonMax.X - 1.0f, buttonMax.Y),
-                ImGui.GetColorU32(new Vector4(1.0f, 0.975f, 0.980f, 1.0f)),
+                ImGui.GetColorU32(WithAlpha(styleTabActive, 1.0f)),
                 2.0f);
         }
 
@@ -312,7 +316,7 @@ public sealed partial class ConfigWindow {
         ImGui.GetWindowDrawList().AddRect(
             min,
             max,
-            ImGui.GetColorU32(new Vector4(0.960f, 0.500f, 0.600f, 1.0f)),
+            ImGui.GetColorU32(WithAlpha(ImGui.GetStyle().Colors[(int)ImGuiCol.SliderGrab], 1.0f)),
             4.0f,
             (ImDrawFlags)0,
             2.0f);
@@ -416,11 +420,13 @@ public sealed partial class ConfigWindow {
         var textSize = ImGui.CalcTextSize(label);
         var textPos = min + (size - textSize) * 0.5f;
 
-        drawList.AddRectFilled(min + new Vector2(1.0f, 2.0f), max + new Vector2(1.0f, 2.0f), ImGui.GetColorU32(new Vector4(0.20f, 0.08f, 0.14f, 0.10f)), 7.0f);
-        drawList.AddRectFilled(min, max, ImGui.GetColorU32(new Vector4(1.0f, 0.94f, 0.97f, 0.68f)), 7.0f);
+        var styleChildBg = ImGui.GetStyle().Colors[(int)ImGuiCol.ChildBg];
+        var styleText = ImGui.GetStyle().Colors[(int)ImGuiCol.Text];
+        drawList.AddRectFilled(min + new Vector2(1.0f, 2.0f), max + new Vector2(1.0f, 2.0f), ImGui.GetColorU32(WithAlpha(styleText, 0.10f)), 7.0f);
+        drawList.AddRectFilled(min, max, ImGui.GetColorU32(WithAlpha(styleChildBg, 0.68f)), 7.0f);
         drawList.AddRect(min, max, ImGui.GetColorU32(WithAlpha(accent, 0.58f)), 7.0f, (ImDrawFlags)0, 1.2f);
         drawList.AddRect(min + new Vector2(2.0f), max - new Vector2(2.0f), ImGui.GetColorU32(WithAlpha(accent, 0.16f)), 5.0f, (ImDrawFlags)0, 1.0f);
-        drawList.AddText(textPos, ImGui.GetColorU32(new Vector4(0.38f, 0.20f, 0.30f, 0.98f)), label);
+        drawList.AddText(textPos, ImGui.GetColorU32(WithAlpha(styleText, 0.98f)), label);
     }
 
     private static Vector4 GetActionCategoryColor(CooldownGroup group) {
@@ -515,11 +521,14 @@ public sealed partial class ConfigWindow {
         var inset = thickness * 0.5f;
         var frameMin = min + new Vector2(inset);
         var frameMax = max - new Vector2(inset);
+        var styleSliderGrab = ImGui.GetStyle().Colors[(int)ImGuiCol.SliderGrab];
+        var styleBorder = ImGui.GetStyle().Colors[(int)ImGuiCol.Border];
+        var styleTabHovered = ImGui.GetStyle().Colors[(int)ImGuiCol.TabHovered];
         var border = enabled
-            ? new Vector4(0.96f, 0.48f, 0.62f, 0.96f)
+            ? WithAlpha(styleSliderGrab, 0.96f)
             : hovered
-                ? new Vector4(0.96f, 0.78f, 0.86f, 0.88f)
-                : new Vector4(0.78f, 0.82f, 0.90f, 0.70f);
+                ? WithAlpha(styleTabHovered, 0.88f)
+                : WithAlpha(styleBorder, 0.70f);
 
         drawList.AddRect(frameMin, frameMax, ImGui.GetColorU32(new Vector4(0.0f, 0.0f, 0.0f, 0.85f)), 3.0f, (ImDrawFlags)0, thickness + 1.0f);
         drawList.AddRect(frameMin, frameMax, ImGui.GetColorU32(border), 3.0f, (ImDrawFlags)0, thickness);

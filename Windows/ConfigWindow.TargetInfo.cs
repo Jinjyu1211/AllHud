@@ -143,6 +143,24 @@ public sealed partial class ConfigWindow {
                 ImGui.TextDisabled("支持导入 Dalamud 样式预设（DS1 开头的压缩码）。");
             }
 
+            ImGui.Spacing();
+            DrawTargetInfoSubsection("内置模板");
+            ImGui.TextDisabled("选择一个内置模板导入为当前样式预设：");
+            ImGui.Spacing();
+            for (var i = 0; i < StylePreset.BuiltInPresets.Length; i++) {
+                var bp = StylePreset.BuiltInPresets[i];
+                if (ImGui.Button($"{bp.Name}##builtin_{i}")) {
+                    this.config.ImportedStyleColors = new Dictionary<string, Vector4>(bp.Colors);
+                    this.config.ImportedStyleVars = bp.ToStyleVars();
+                    this.config.ImportedStyleName = bp.Name;
+                    this.config.ActiveThemePreset = ThemePreset.Imported;
+                    this.saveConfig();
+                }
+                if (i < StylePreset.BuiltInPresets.Length - 1) {
+                    ImGui.SameLine();
+                }
+            }
+
             if (this.config.ActiveThemePreset != ThemePreset.Custom) {
                 return;
             }

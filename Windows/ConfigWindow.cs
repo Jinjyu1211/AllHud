@@ -458,23 +458,29 @@ public sealed partial class ConfigWindow {
         var titleBarMax = titleBarMin + new Vector2(availWidth, titleBarHeight);
         var textY = titleBarMin.Y + 9.0f;
 
-        // 标题栏使用更浅的粉白卡片，与下方左右面板形成第一层分区。
+        // 标题栏背景/边框取自 style，便于自定义主题接管
+        var styleWindowBg = ImGui.GetStyle().Colors[(int)ImGuiCol.WindowBg];
+        var styleBorder = ImGui.GetStyle().Colors[(int)ImGuiCol.Border];
+        var styleButton = ImGui.GetStyle().Colors[(int)ImGuiCol.Button];
+        var styleButtonHovered = ImGui.GetStyle().Colors[(int)ImGuiCol.ButtonHovered];
+        var styleText = ImGui.GetStyle().Colors[(int)ImGuiCol.Text];
+
         drawList.AddRectFilled(
             titleBarMin,
             titleBarMax,
-            ImGui.GetColorU32(new Vector4(1.0f, 0.925f, 0.940f, 1.0f)),
+            ImGui.GetColorU32(WithAlpha(styleWindowBg, 0.96f)),
             8.0f);
         drawList.AddRect(
             titleBarMin,
             titleBarMax,
-            ImGui.GetColorU32(new Vector4(0.935f, 0.650f, 0.720f, 0.42f)),
+            ImGui.GetColorU32(WithAlpha(styleBorder, 0.42f)),
             8.0f,
             (ImDrawFlags)0,
             1.0f);
         drawList.AddLine(
             new Vector2(titleBarMin.X + 10.0f, titleBarMax.Y - 1.0f),
             new Vector2(titleBarMax.X - 10.0f, titleBarMax.Y - 1.0f),
-            ImGui.GetColorU32(new Vector4(0.900f, 0.600f, 0.680f, 0.26f)),
+            ImGui.GetColorU32(WithAlpha(styleBorder, 0.26f)),
             1.0f);
 
         // 居中标题：插件名使用静态 RGB 字色，标题栏更有识别度但不做动画。
@@ -500,20 +506,20 @@ public sealed partial class ConfigWindow {
         var titleTextPos = new Vector2(titleCenterX - titleWidth * 0.5f, textY);
         var titlePillMin = titleTextPos - new Vector2(12.0f, 5.0f);
         var titlePillMax = titleTextPos + new Vector2(titleWidth + 12.0f, ImGui.GetTextLineHeight() + 5.0f);
-        drawList.AddRectFilled(titlePillMin, titlePillMax, ImGui.GetColorU32(new Vector4(1.0f, 0.980f, 0.970f, 0.56f)), 999.0f);
-        drawList.AddRectFilled(titlePillMin + new Vector2(8.0f, titlePillMax.Y - titlePillMin.Y - 3.0f), titlePillMax - new Vector2(8.0f, 1.5f), ImGui.GetColorU32(new Vector4(0.96f, 0.46f, 0.32f, 0.18f)), 999.0f);
-        drawList.AddRect(titlePillMin, titlePillMax, ImGui.GetColorU32(new Vector4(0.960f, 0.650f, 0.520f, 0.34f)), 999.0f, (ImDrawFlags)0, 1.0f);
+        drawList.AddRectFilled(titlePillMin, titlePillMax, ImGui.GetColorU32(WithAlpha(styleButton, 0.56f)), 999.0f);
+        drawList.AddRectFilled(titlePillMin + new Vector2(8.0f, titlePillMax.Y - titlePillMin.Y - 3.0f), titlePillMax - new Vector2(8.0f, 1.5f), ImGui.GetColorU32(WithAlpha(styleBorder, 0.18f)), 999.0f);
+        drawList.AddRect(titlePillMin, titlePillMax, ImGui.GetColorU32(WithAlpha(styleBorder, 0.34f)), 999.0f, (ImDrawFlags)0, 1.0f);
 
         var letterX = titleTextPos.X;
         for (var index = 0; index < titleLetters.Length; index++) {
             var letter = titleLetters[index];
             var letterPos = new Vector2(letterX, titleTextPos.Y);
-            drawList.AddText(letterPos + new Vector2(0.8f, 0.8f), ImGui.GetColorU32(new Vector4(1.0f, 0.80f, 0.72f, 0.34f)), letter);
+            drawList.AddText(letterPos + new Vector2(0.8f, 0.8f), ImGui.GetColorU32(WithAlpha(styleText, 0.34f)), letter);
             drawList.AddText(letterPos, ImGui.GetColorU32(titleLetterColors[index]), letter);
             letterX += ImGui.CalcTextSize(letter).X;
         }
 
-        drawList.AddText(new Vector2(letterX, titleTextPos.Y), ImGui.GetColorU32(new Vector4(0.52f, 0.30f, 0.42f, 0.92f)), titleSub);
+        drawList.AddText(new Vector2(letterX, titleTextPos.Y), ImGui.GetColorU32(WithAlpha(styleText, 0.92f)), titleSub);
 
         const float closeBtnSize = 26.0f;
 
@@ -526,22 +532,22 @@ public sealed partial class ConfigWindow {
 
         // 小型圆角按钮 + 细线 X，避免厚重红叉。
         var closeBgColor = closeHovered
-            ? ImGui.GetColorU32(new Vector4(0.960f, 0.560f, 0.640f, 0.88f))
-            : ImGui.GetColorU32(new Vector4(1.0f, 0.965f, 0.970f, 0.86f));
+            ? ImGui.GetColorU32(WithAlpha(styleButtonHovered, 0.88f))
+            : ImGui.GetColorU32(WithAlpha(styleButton, 0.86f));
         drawList.AddRectFilled(closeMin, closeMax, closeBgColor, 6.0f);
         drawList.AddRect(
             closeMin,
             closeMax,
             ImGui.GetColorU32(closeHovered
-                ? new Vector4(0.900f, 0.420f, 0.520f, 0.85f)
-                : new Vector4(0.905f, 0.650f, 0.710f, 0.55f)),
+                ? WithAlpha(styleBorder, 0.85f)
+                : WithAlpha(styleBorder, 0.55f)),
             6.0f,
             (ImDrawFlags)0,
             1.0f);
 
         var xColor = ImGui.GetColorU32(closeHovered
-            ? new Vector4(1.0f, 0.985f, 0.990f, 1.0f)
-            : new Vector4(0.55f, 0.28f, 0.38f, 0.82f));
+            ? WithAlpha(styleText, 1.0f)
+            : WithAlpha(styleText, 0.82f));
         const float xHalf = 5.0f;
         drawList.AddLine(closeCenter - new Vector2(xHalf, xHalf), closeCenter + new Vector2(xHalf, xHalf), xColor, 1.55f);
         drawList.AddLine(closeCenter + new Vector2(xHalf, -xHalf), closeCenter - new Vector2(xHalf, -xHalf), xColor, 1.55f);
@@ -916,12 +922,15 @@ public sealed partial class ConfigWindow {
 
             var option = options[index];
             var selected = currentValue == option.Value;
+            var styleText = ImGui.GetStyle().Colors[(int)ImGuiCol.Text];
+            var styleButton = ImGui.GetStyle().Colors[(int)ImGuiCol.Button];
+            var styleFrameBg = ImGui.GetStyle().Colors[(int)ImGuiCol.FrameBg];
             var buttonTextColor = selected
-                ? new Vector4(1.0f, 0.985f, 0.930f, 1.0f)
-                : new Vector4(0.52f, 0.36f, 0.42f, 0.86f);
+                ? WithAlpha(styleFrameBg, 1.0f)
+                : WithAlpha(styleText, 0.86f);
             var buttonColor = selected
                 ? WithAlpha(accentColor, 0.72f)
-                : new Vector4(1.0f, 0.970f, 0.965f, 0.88f);
+                : WithAlpha(styleButton, 0.88f);
             var buttonHoveredColor = selected
                 ? WithAlpha(accentColor, 0.88f)
                 : WithAlpha(accentColor, 0.24f);
@@ -1015,7 +1024,7 @@ public sealed partial class ConfigWindow {
         return (lineBounds.Left + 1.0f, lineBounds.Right - 1.0f);
     }
 
-    private static bool DrawAddComponentCard(TaskBarComponentDefinition component) {
+    private bool DrawAddComponentCard(TaskBarComponentDefinition component) {
         var drawList = ImGui.GetWindowDrawList();
         var rowMin = ImGui.GetCursorScreenPos();
         var rowWidth = Math.Max(280.0f, ImGui.GetContentRegionAvail().X);
@@ -1026,24 +1035,32 @@ public sealed partial class ConfigWindow {
         var hovered = ImGui.IsItemHovered();
         var active = ImGui.IsItemActive();
         var clicked = ImGui.IsItemClicked();
+
+        var styleFrameBg = ImGui.GetStyle().Colors[(int)ImGuiCol.FrameBg];
+        var styleFrameBgHovered = ImGui.GetStyle().Colors[(int)ImGuiCol.FrameBgHovered];
+        var styleFrameBgActive = ImGui.GetStyle().Colors[(int)ImGuiCol.FrameBgActive];
+        var styleBorder = ImGui.GetStyle().Colors[(int)ImGuiCol.Border];
+        var styleText = ImGui.GetStyle().Colors[(int)ImGuiCol.Text];
+        var styleHeader = ImGui.GetStyle().Colors[(int)ImGuiCol.Header];
+
         var fill = active
-            ? new Vector4(1.0f, 0.88f, 0.94f, 0.96f)
+            ? WithAlpha(styleFrameBgActive, 0.96f)
             : hovered
-                ? new Vector4(1.0f, 0.94f, 0.97f, 0.96f)
-                : new Vector4(1.0f, 0.975f, 0.985f, 0.88f);
+                ? WithAlpha(styleFrameBgHovered, 0.96f)
+                : WithAlpha(styleFrameBg, 0.88f);
         var border = hovered
-            ? new Vector4(0.78f, 0.42f, 0.60f, 0.78f)
-            : new Vector4(0.92f, 0.68f, 0.76f, 0.44f);
+            ? WithAlpha(styleHeader, 0.78f)
+            : WithAlpha(styleBorder, 0.44f);
 
         drawList.AddRectFilled(rowMin, rowMax, ImGui.GetColorU32(fill), 8.0f);
         drawList.AddRect(rowMin, rowMax, ImGui.GetColorU32(border), 8.0f, (ImDrawFlags)0, active ? 1.4f : 1.0f);
-        DrawTaskBarComponentIcon(drawList, component.Id, rowMin + new Vector2(25.0f, rowHeight * 0.5f), hovered ? new Vector4(0.54f, 0.24f, 0.38f, 1.0f) : new Vector4(0.50f, 0.34f, 0.42f, 0.82f));
+        DrawTaskBarComponentIcon(drawList, component.Id, rowMin + new Vector2(25.0f, rowHeight * 0.5f), hovered ? WithAlpha(styleText, 1.0f) : WithAlpha(styleText, 0.82f));
 
         var namePos = rowMin + new Vector2(50.0f, 7.0f);
         var descPos = rowMin + new Vector2(50.0f, 27.0f);
         var textMaxWidth = Math.Max(40.0f, rowMax.X - descPos.X - 12.0f);
-        drawList.AddText(namePos, ImGui.GetColorU32(new Vector4(0.34f, 0.18f, 0.27f, 1.0f)), component.Name);
-        drawList.AddText(descPos, ImGui.GetColorU32(new Vector4(0.54f, 0.38f, 0.46f, 0.76f)), TrimTextToWidth(component.Description, textMaxWidth));
+        drawList.AddText(namePos, ImGui.GetColorU32(WithAlpha(styleText, 1.0f)), component.Name);
+        drawList.AddText(descPos, ImGui.GetColorU32(WithAlpha(styleText, 0.76f)), TrimTextToWidth(component.Description, textMaxWidth));
 
         ImGui.SetCursorScreenPos(rowMin + new Vector2(0.0f, rowHeight + 6.0f));
         return clicked;

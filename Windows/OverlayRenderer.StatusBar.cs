@@ -37,6 +37,34 @@ using LuminaTerritoryType = Lumina.Excel.Sheets.TerritoryType;
 namespace AllHud.Windows;
 
 public sealed partial class OverlayRenderer {
+    private Vector4 StatusPanelBackground => this.config.StatusPanelUseAccentColor
+        ? new Vector4(1.0f, 0.94f, 0.97f, this.config.StatusPanelBackgroundOpacity)
+        : this.config.StatusPanelCustomBackground with { W = this.config.StatusPanelBackgroundOpacity };
+
+    private Vector4 StatusPanelBorder => this.config.StatusPanelUseAccentColor
+        ? new Vector4(0.93f, 0.58f, 0.74f, this.config.StatusPanelBorderOpacity)
+        : this.config.StatusPanelCustomBorder with { W = this.config.StatusPanelBorderOpacity };
+
+    private Vector4 StatusPanelShadow => this.config.StatusPanelUseAccentColor
+        ? new Vector4(0.20f, 0.08f, 0.14f, this.config.StatusPanelShadowOpacity)
+        : this.config.StatusPanelCustomShadow with { W = this.config.StatusPanelShadowOpacity };
+
+    private Vector4 StatusSectionLabelBackground => this.config.StatusPanelUseAccentColor
+        ? new Vector4(1.0f, 0.98f, 1.0f, this.config.StatusSectionLabelBackgroundOpacity)
+        : this.config.StatusSectionCustomLabelBackground with { W = this.config.StatusSectionLabelBackgroundOpacity };
+
+    private Vector4 StatusSectionLabelBorder => this.config.StatusPanelUseAccentColor
+        ? new Vector4(0.93f, 0.58f, 0.74f, this.config.StatusSectionLabelBorderOpacity)
+        : this.config.StatusSectionCustomLabelBorder with { W = this.config.StatusSectionLabelBorderOpacity };
+
+    private Vector4 StatusSectionDivider => this.config.StatusPanelUseAccentColor
+        ? new Vector4(0.93f, 0.58f, 0.74f, this.config.StatusSectionDividerOpacity)
+        : this.config.StatusSectionCustomDivider with { W = this.config.StatusSectionDividerOpacity };
+
+    private Vector4 StatusSectionLabelTextColor => this.config.StatusPanelUseAccentColor
+        ? new Vector4(0.46f, 0.27f, 0.36f, 0.98f)
+        : new Vector4(0.92f, 0.92f, 0.94f, 0.98f);
+
     private void DrawStatusWindow(ImGuiWindowFlags flags) {
         if (this.config.StatusBarLocked) {
             flags |= ImGuiWindowFlags.NoMove;
@@ -546,13 +574,15 @@ public sealed partial class OverlayRenderer {
         }
     }
 
-    private static void DrawStatusSectionCard(ImDrawListPtr drawList, Vector2 min, Vector2 max, Vector4 accentColor, float scale, bool splitMode) {
+    private void DrawStatusSectionCard(ImDrawListPtr drawList, Vector2 min, Vector2 max, Vector4 accentColor, float scale, bool splitMode) {
         var rounding = splitMode ? 18.0f * scale : 16.0f * scale;
         drawList.AddRectFilled(min + new Vector2(0.0f, 2.0f * scale), max + new Vector2(0.0f, 2.0f * scale), ImGui.GetColorU32(StatusPanelShadow), rounding);
         drawList.AddRectFilled(min, max, ImGui.GetColorU32(StatusPanelBackground), rounding);
         var highlightMin = min + new Vector2(1.0f * scale, 1.0f * scale);
         var highlightMax = new Vector2(max.X - 1.0f * scale, min.Y + Math.Max(1.0f, (max.Y - min.Y) * 0.42f));
-        drawList.AddRectFilled(highlightMin, highlightMax, ImGui.GetColorU32(new Vector4(1.0f, 0.98f, 1.0f, 0.24f)), rounding, ImDrawFlags.RoundCornersTop);
+        var bg = StatusPanelBackground;
+        var highlightColor = new Vector4(Math.Min(1.0f, bg.X * 1.25f + 0.08f), Math.Min(1.0f, bg.Y * 1.25f + 0.08f), Math.Min(1.0f, bg.Z * 1.25f + 0.08f), 0.24f);
+        drawList.AddRectFilled(highlightMin, highlightMax, ImGui.GetColorU32(highlightColor), rounding, ImDrawFlags.RoundCornersTop);
         drawList.AddRect(min, max, ImGui.GetColorU32(StatusPanelBorder), rounding, (ImDrawFlags)0, 1.0f * scale);
         if (splitMode) {
             drawList.AddRect(min + new Vector2(1.0f, 1.0f), max - new Vector2(1.0f, 1.0f), ImGui.GetColorU32(new Vector4(accentColor.X, accentColor.Y, accentColor.Z, 0.12f)), rounding * 0.85f, (ImDrawFlags)0, 1.0f * scale);
@@ -568,7 +598,7 @@ public sealed partial class OverlayRenderer {
         drawList.AddRectFilled(labelMin, labelMax, ImGui.GetColorU32(StatusSectionLabelBackground), 999.0f);
         drawList.AddRect(labelMin, labelMax, ImGui.GetColorU32(StatusSectionLabelBorder), 999.0f, (ImDrawFlags)0, 1.0f * scale);
         drawList.AddCircleFilled(labelMin + new Vector2(12.0f * scale, labelHeight * 0.5f), 3.5f * scale, ImGui.GetColorU32(accentColor));
-        DrawShadowText(drawList, labelMin + new Vector2(22.0f * scale, Math.Max(0.0f, (labelHeight - ImGui.GetTextLineHeight()) * 0.5f)), ImGui.GetColorU32(new Vector4(0.46f, 0.27f, 0.36f, 0.98f)), label, GetFontSize(scale));
+        DrawShadowText(drawList, labelMin + new Vector2(22.0f * scale, Math.Max(0.0f, (labelHeight - ImGui.GetTextLineHeight()) * 0.5f)), ImGui.GetColorU32(StatusSectionLabelTextColor), label, GetFontSize(scale));
         ImGui.SetCursorScreenPos(new Vector2(labelMax.X + 18.0f * scale, start.Y));
     }
 

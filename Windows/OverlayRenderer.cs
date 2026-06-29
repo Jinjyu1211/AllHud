@@ -92,14 +92,6 @@ public sealed partial class OverlayRenderer {
     private static readonly Vector4 OtherDebuffColor = new(1.0f, 0.45f, 0.45f, 1.0f);
     private static readonly Vector4 HeaderColor = new(1.0f, 1.0f, 1.0f, 1.0f);
     private static readonly Vector4 PersonalSkillColor = new(0.95f, 0.86f, 0.45f, 1.0f);
-    private static readonly Vector4 StatusPanelBackground = new(1.0f, 0.94f, 0.97f, 0.80f);
-    private static readonly Vector4 StatusPanelBorder = new(0.93f, 0.58f, 0.74f, 0.82f);
-    private static readonly Vector4 StatusPanelShadow = new(0.20f, 0.08f, 0.14f, 0.12f);
-    private static readonly Vector4 StatusSectionLabelBackground = new(1.0f, 0.98f, 1.0f, 0.88f);
-    private static readonly Vector4 StatusSectionLabelBorder = new(0.93f, 0.58f, 0.74f, 0.55f);
-    private static readonly Vector4 StatusSectionDivider = new(0.93f, 0.58f, 0.74f, 0.20f);
-    private static readonly Vector4 StatusChipBackground = new(1.0f, 0.98f, 0.99f, 0.94f);
-    private static readonly Vector4 StatusChipBorder = new(0.93f, 0.58f, 0.74f, 0.52f);
     private readonly record struct NativePartyMemberAnchor(Vector2 RowMin, float RowRight, float RowH, bool HasJobIconAnchor);
     private sealed record PartyInfoLookupMaps(
         IReadOnlyDictionary<uint, PartyCooldownGroupEntry> GroupsByEntityId,

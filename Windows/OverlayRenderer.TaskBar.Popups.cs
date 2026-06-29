@@ -33,6 +33,7 @@ using LuminaClassJob = Lumina.Excel.Sheets.ClassJob;
 using LuminaMainCommand = Lumina.Excel.Sheets.MainCommand;
 using LuminaMainCommandCategory = Lumina.Excel.Sheets.MainCommandCategory;
 using LuminaTerritoryType = Lumina.Excel.Sheets.TerritoryType;
+using LuminaTomestonesItem = Lumina.Excel.Sheets.TomestonesItem;
 
 namespace AllHud.Windows;
 
@@ -868,12 +869,42 @@ public sealed partial class OverlayRenderer {
         new(CurrencyItemGil, "金币", 0),
         new(CurrencyItemMgp, "金碟币", 0),
         new(CurrencyItemVenture, "探险币", 0),
-        new(CurrencyItemPoetics, "亚拉戈诗学神典石", 0),
         new(CurrencyItemWolfMarks, "狼印章", 0),
-        new(CurrencyItemBiColorGemstones, "双色宝石", 0),
         new(CurrencyItemAlliedSeals, "同盟徽章", 0),
         new(CurrencyItemCenturioSeals, "百战徽章", 0),
+        new(CurrencyItemBiColorGemstones, "双色宝石", 0),
+        new(CurrencyItemPoetics, "亚拉戈诗学神典石", 0),
     ];
+
+    private List<CurrencyDisplayInfo>? scannedTomestones;
+
+    private IEnumerable<CurrencyDisplayInfo> GetScannedTomestones() {
+        if (this.scannedTomestones is not null) {
+            return this.scannedTomestones;
+        }
+
+        var result = new List<CurrencyDisplayInfo>();
+        try {
+            var sheet = this.dataManager.GetExcelSheet<LuminaTomestonesItem>();
+            if (sheet is not null) {
+                foreach (var row in sheet) {
+                    var itemRef = row.Item;
+                    if (itemRef.IsValid && itemRef.RowId != CurrencyItemPoetics) {
+                        if (this.dataManager.GetExcelSheet<LuminaItem>().TryGetRow(itemRef.RowId, out var item)) {
+                            var name = GetExcelText(item.Name.ExtractText());
+                            if (!string.IsNullOrWhiteSpace(name)) {
+                                result.Add(new CurrencyDisplayInfo(itemRef.RowId, name, item.Icon));
+                            }
+                        }
+                    }
+                }
+            }
+        } catch {
+        }
+
+        this.scannedTomestones = result;
+        return result;
+    }
 
     private CurrencyDisplayInfo GetSelectedCurrencyDisplayInfo() {
         var allOptions = GetAllCurrencyOptions().ToList();
@@ -911,6 +942,10 @@ public sealed partial class OverlayRenderer {
     private IEnumerable<CurrencyDisplayInfo> GetAllCurrencyOptions() {
         foreach (var option in CurrencyDisplayOptions) {
             yield return option;
+        }
+
+        foreach (var tomestone in GetScannedTomestones()) {
+            yield return tomestone;
         }
 
         foreach (var custom in this.config.CustomCurrencies) {

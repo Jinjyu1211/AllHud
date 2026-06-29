@@ -8,6 +8,8 @@ using Dalamud.Plugin.Services;
 using System.Numerics;
 using System.Runtime.InteropServices;
 using System.Text;
+using LuminaItem = Lumina.Excel.Sheets.Item;
+using LuminaTomestonesItem = Lumina.Excel.Sheets.TomestonesItem;
 
 namespace AllHud.Windows;
 
@@ -1034,6 +1036,36 @@ public sealed partial class ConfigWindow {
         });
     }
 
+    private List<CurrencyDisplayOption>? scannedTomestones;
+
+    private IEnumerable<CurrencyDisplayOption> GetScannedTomestones() {
+        if (this.scannedTomestones is not null) {
+            return this.scannedTomestones;
+        }
+
+        var result = new List<CurrencyDisplayOption>();
+        try {
+            var sheet = this.dataManager.GetExcelSheet<LuminaTomestonesItem>();
+            if (sheet is not null) {
+                foreach (var row in sheet) {
+                    var itemRef = row.Item;
+                    if (itemRef.IsValid && itemRef.RowId != 28) {
+                        if (this.dataManager.GetExcelSheet<LuminaItem>().TryGetRow(itemRef.RowId, out var item)) {
+                            var name = item.Name.ExtractText();
+                            if (!string.IsNullOrWhiteSpace(name)) {
+                                result.Add(new CurrencyDisplayOption(itemRef.RowId, name));
+                            }
+                        }
+                    }
+                }
+            }
+        } catch {
+        }
+
+        this.scannedTomestones = result;
+        return result;
+    }
+
     private void DrawTaskBarCurrencySettings() {
         var settingsWidth = GetExpandedSettingsWidth();
         DrawCompactCheckbox("显示货币名称", "TaskBarCurrencyShowName_ComponentPanel", this.config.TaskBarCurrencyShowName, value => this.config.TaskBarCurrencyShowName = value);
@@ -1042,11 +1074,14 @@ public sealed partial class ConfigWindow {
             ImGui.SameLine(0.0f, 18.0f);
         }
 
-        var allOptions = CurrencyDisplayOptions.Concat(
-            this.config.CustomCurrencies
-                .Where(c => c.Enabled && c.ItemId != 0)
-                .Select(c => new CurrencyDisplayOption(c.ItemId, c.Name))
-        ).ToList();
+        var tomestones = GetScannedTomestones().ToList();
+        var allOptions = CurrencyDisplayOptions
+            .Concat(tomestones)
+            .Concat(
+                this.config.CustomCurrencies
+                    .Where(c => c.Enabled && c.ItemId != 0)
+                    .Select(c => new CurrencyDisplayOption(c.ItemId, c.Name))
+            ).ToList();
 
         var selected = allOptions.FirstOrDefault(option => option.ItemId == this.config.TaskBarCurrencyItemId);
         var selectedName = selected.ItemId == 0 ? "金币" : selected.Name;
@@ -1061,6 +1096,23 @@ public sealed partial class ConfigWindow {
 
                 if (isSelected) {
                     ImGui.SetItemDefaultFocus();
+                }
+            }
+
+            if (tomestones.Count > 0) {
+                ImGui.Separator();
+                ImGui.TextDisabled("神典石（自动扫描）");
+
+                foreach (var tomestone in tomestones) {
+                    var isSelected = tomestone.ItemId == this.config.TaskBarCurrencyItemId;
+                    if (ImGui.Selectable(tomestone.Name, isSelected)) {
+                        this.config.TaskBarCurrencyItemId = tomestone.ItemId;
+                        this.saveConfig();
+                    }
+
+                    if (isSelected) {
+                        ImGui.SetItemDefaultFocus();
+                    }
                 }
             }
 

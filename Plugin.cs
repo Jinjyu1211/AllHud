@@ -51,7 +51,7 @@ public sealed class Plugin : IDalamudPlugin {
             this.overlayRenderer = new OverlayRenderer(this.config, this.combatState, dataManager, textureProvider, gameGui, addonEventManager, commandManager, gameConfig, gameInventory, clientState, objectTable, dtrBar, this.pluginInterface, SaveConfig);
 
             this.log.Information("AllHud initializing: creating config window.");
-            this.configWindow = new ConfigWindow(this.config, this.combatState, textureProvider, this.pluginInterface, SaveConfig);
+            this.configWindow = new ConfigWindow(this.config, this.combatState, textureProvider, this.pluginInterface, dataManager, SaveConfig);
 
             this.log.Information("AllHud initializing: registering UI callbacks.");
             this.pluginInterface.UiBuilder.Draw += Draw;

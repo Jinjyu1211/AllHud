@@ -8,6 +8,8 @@ using Dalamud.Plugin.Services;
 using System.Numerics;
 using System.Runtime.InteropServices;
 using System.Text;
+using LuminaItem = Lumina.Excel.Sheets.Item;
+using LuminaTomestonesItem = Lumina.Excel.Sheets.TomestonesItem;
 
 namespace AllHud.Windows;
 
@@ -91,16 +93,17 @@ public sealed partial class ConfigWindow {
         new(1, "金币"),
         new(29, "金碟币"),
         new(21072, "探险币"),
-        new(28, "亚拉戈诗学神典石"),
         new(25, "狼印章"),
-        new(26807, "双色宝石"),
         new(27, "同盟徽章"),
         new(10307, "百战徽章"),
+        new(26807, "双色宝石"),
+        new(28, "亚拉戈诗学神典石"),
     ];
     private readonly Configuration config;
     private readonly CombatStateTracker combatState;
     private readonly ITextureProvider textureProvider;
     private readonly IDalamudPluginInterface pluginInterface;
+    private readonly IDataManager dataManager;
     private readonly Action saveConfig;
     private readonly List<Dalamud.Plugin.IExposedPlugin> installedPluginSelectionCache = [];
     private readonly Dictionary<string, Dalamud.Plugin.IExposedPlugin> installedPluginSelectionByInternalName = new(StringComparer.OrdinalIgnoreCase);
@@ -121,11 +124,12 @@ public sealed partial class ConfigWindow {
     private TaskBarPage selectedTaskBarPage = TaskBarPage.任务栏;
     private int selectedAuxiliaryBarIndex;
 
-    public ConfigWindow(Configuration config, CombatStateTracker combatState, ITextureProvider textureProvider, IDalamudPluginInterface pluginInterface, Action saveConfig) {
+    public ConfigWindow(Configuration config, CombatStateTracker combatState, ITextureProvider textureProvider, IDalamudPluginInterface pluginInterface, IDataManager dataManager, Action saveConfig) {
         this.config = config;
         this.combatState = combatState;
         this.textureProvider = textureProvider;
         this.pluginInterface = pluginInterface;
+        this.dataManager = dataManager;
         this.saveConfig = saveConfig;
     }
 

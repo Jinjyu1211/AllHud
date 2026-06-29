@@ -175,6 +175,21 @@ public sealed class Configuration : IPluginConfiguration {
     public Vector4? CustomThemeNavBgColor { get; set; }
     public Vector4? CustomThemeNavBorderColor { get; set; }
     public ThemePreset ActiveThemePreset { get; set; } = ThemePreset.Default;
+
+    // 状态栏（自身 Buff/Debuff）面板外观
+    public float StatusPanelBackgroundOpacity { get; set; } = 0.80f;
+    public float StatusPanelBorderOpacity { get; set; } = 0.82f;
+    public float StatusPanelShadowOpacity { get; set; } = 0.12f;
+    public float StatusSectionLabelBackgroundOpacity { get; set; } = 0.88f;
+    public float StatusSectionLabelBorderOpacity { get; set; } = 0.55f;
+    public float StatusSectionDividerOpacity { get; set; } = 0.20f;
+    public bool StatusPanelUseAccentColor { get; set; } = false;
+    public Vector4 StatusPanelCustomBackground { get; set; } = new(0.10f, 0.10f, 0.12f, 0.80f);
+    public Vector4 StatusPanelCustomBorder { get; set; } = new(0.50f, 0.50f, 0.55f, 0.82f);
+    public Vector4 StatusPanelCustomShadow { get; set; } = new(0.00f, 0.00f, 0.00f, 0.12f);
+    public Vector4 StatusSectionCustomLabelBackground { get; set; } = new(0.12f, 0.12f, 0.14f, 0.88f);
+    public Vector4 StatusSectionCustomLabelBorder { get; set; } = new(0.50f, 0.50f, 0.55f, 0.55f);
+    public Vector4 StatusSectionCustomDivider { get; set; } = new(0.50f, 0.50f, 0.55f, 0.20f);
     public List<string> HiddenImGuiWindowNames { get; set; } = [];
     public List<string> TaskBarComponentOrder { get; set; } = [.. DefaultTaskBarComponentOrder];
     public List<string> TaskBarLeftComponentOrder { get; set; } = [];

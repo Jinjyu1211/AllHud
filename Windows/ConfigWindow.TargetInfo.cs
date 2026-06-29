@@ -64,6 +64,24 @@ public sealed partial class ConfigWindow {
 
             DrawTargetInfoSubsection("来源");
             DrawCheckbox("来源显示职业名", nameof(this.config.ShowSourceJobNames), this.config.ShowSourceJobNames, value => this.config.ShowSourceJobNames = value);
+
+            DrawTargetInfoSubsection("外观");
+            DrawCheckbox("使用主题强调色", nameof(this.config.StatusPanelUseAccentColor), this.config.StatusPanelUseAccentColor, value => this.config.StatusPanelUseAccentColor = value);
+            if (!this.config.StatusPanelUseAccentColor) {
+                DrawColorPicker("背景色", this.config.StatusPanelCustomBackground, value => this.config.StatusPanelCustomBackground = value);
+                DrawColorPicker("边框色", this.config.StatusPanelCustomBorder, value => this.config.StatusPanelCustomBorder = value);
+                DrawColorPicker("阴影色", this.config.StatusPanelCustomShadow, value => this.config.StatusPanelCustomShadow = value);
+                DrawColorPicker("标签背景", this.config.StatusSectionCustomLabelBackground, value => this.config.StatusSectionCustomLabelBackground = value);
+                DrawColorPicker("标签边框", this.config.StatusSectionCustomLabelBorder, value => this.config.StatusSectionCustomLabelBorder = value);
+                DrawColorPicker("分隔线", this.config.StatusSectionCustomDivider, value => this.config.StatusSectionCustomDivider = value);
+            }
+
+            DrawOpacitySlider("背景透明度", "status_bg_opacity", this.config.StatusPanelBackgroundOpacity, value => this.config.StatusPanelBackgroundOpacity = value);
+            DrawOpacitySlider("边框透明度", "status_border_opacity", this.config.StatusPanelBorderOpacity, value => this.config.StatusPanelBorderOpacity = value);
+            DrawOpacitySlider("阴影透明度", "status_shadow_opacity", this.config.StatusPanelShadowOpacity, value => this.config.StatusPanelShadowOpacity = value);
+            DrawOpacitySlider("标签背景透明度", "status_label_bg_opacity", this.config.StatusSectionLabelBackgroundOpacity, value => this.config.StatusSectionLabelBackgroundOpacity = value);
+            DrawOpacitySlider("标签边框透明度", "status_label_border_opacity", this.config.StatusSectionLabelBorderOpacity, value => this.config.StatusSectionLabelBorderOpacity = value);
+            DrawOpacitySlider("分隔线透明度", "status_divider_opacity", this.config.StatusSectionDividerOpacity, value => this.config.StatusSectionDividerOpacity = value);
         });
     }
 
@@ -191,6 +209,18 @@ public sealed partial class ConfigWindow {
         ImGui.SetNextItemWidth(160.0f);
         if (ImGui.ColorEdit4($"##{label}", ref value, ImGuiColorEditFlags.NoInputs | ImGuiColorEditFlags.AlphaBar)) {
             setter(value);
+            this.saveConfig();
+        }
+    }
+
+    private void DrawOpacitySlider(string label, string id, float current, Action<float> setter, float minValue = 0.0f, float maxValue = 1.0f) {
+        var percentValue = current * 100.0f;
+        ImGui.AlignTextToFramePadding();
+        ImGui.TextUnformatted(label);
+        ImGui.SameLine(0.0f, 8.0f);
+        ImGui.SetNextItemWidth(160.0f);
+        if (ImGui.SliderFloat($"##{id}", ref percentValue, minValue * 100.0f, maxValue * 100.0f, $"{percentValue:0}%")) {
+            setter(Math.Clamp(percentValue / 100.0f, minValue, maxValue));
             this.saveConfig();
         }
     }

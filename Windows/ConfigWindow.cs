@@ -182,13 +182,11 @@ public sealed partial class ConfigWindow {
         var navWidth = 156.0f;
 
         // 自适应导航/内容区颜色
-        var navBg = new Vector4(0.982f, 0.900f, 0.918f, 1.0f);
-        var navBorder = new Vector4(0.925f, 0.660f, 0.725f, 0.50f);
-        var contentBg = new Vector4(1.0f, 0.972f, 0.978f, 1.0f);
-        var contentBorder = new Vector4(0.940f, 0.720f, 0.780f, 0.42f);
-
+        Vector4 navBg, navBorder, contentBg, contentBorder;
         if (useImported) {
-            // 导入样式：优先从调色板取 ChildBg/Border
+            // 导入样式：深色兜底，调色板有则覆盖
+            contentBg = new Vector4(0.11f, 0.11f, 0.12f, 1.0f);
+            contentBorder = new Vector4(0.30f, 0.30f, 0.36f, 0.50f);
             var imported = this.config.ImportedStyleColors!;
             if (imported.TryGetValue("ChildBg", out var cb)) contentBg = cb;
             if (imported.TryGetValue("Border", out var cbo)) contentBorder = WithAlpha(cbo, 0.5f);
@@ -204,6 +202,12 @@ public sealed partial class ConfigWindow {
             else navBorder = WithAlpha(accent, 0.45f);
             contentBg = WithAlpha(bg, 0.96f);
             contentBorder = WithAlpha(accent, 0.35f);
+        } else {
+            // 默认粉白
+            navBg = new Vector4(0.982f, 0.900f, 0.918f, 1.0f);
+            navBorder = new Vector4(0.925f, 0.660f, 0.725f, 0.50f);
+            contentBg = new Vector4(1.0f, 0.972f, 0.978f, 1.0f);
+            contentBorder = new Vector4(0.940f, 0.720f, 0.780f, 0.42f);
         }
 
         ImGui.PushStyleColor(ImGuiCol.ChildBg, navBg);
@@ -280,20 +284,68 @@ public sealed partial class ConfigWindow {
         var useImported = this.config.ActiveThemePreset == ThemePreset.Imported
                           && this.config.ImportedStyleColors is { Count: > 0 };
 
-        // 基础调色板：默认粉白，自定义主题用用户色，导入样式也先 push 作为兜底
-        var windowBg = new Vector4(0.992f, 0.940f, 0.948f, 1.0f);
-        var childBg = new Vector4(1.0f, 0.970f, 0.976f, 1.0f);
-        var text = new Vector4(0.42f, 0.28f, 0.35f, 1.0f);
-        var border = new Vector4(0.910f, 0.700f, 0.750f, 0.65f);
-        var separator = new Vector4(0.925f, 0.670f, 0.730f, 0.70f);
-        var buttonActive = new Vector4(0.925f, 0.680f, 0.735f, 1.0f);
-        var headerActive = new Vector4(0.900f, 0.660f, 0.720f, 1.0f);
-        var tabActive = new Vector4(0.975f, 0.890f, 0.905f, 1.0f);
-        var scrollbarGrab = new Vector4(0.900f, 0.560f, 0.640f, 0.68f);
-        var scrollbarGrabHovered = new Vector4(0.870f, 0.460f, 0.560f, 0.82f);
-        var scrollbarGrabActive = new Vector4(0.820f, 0.380f, 0.500f, 1.0f);
-        var sliderGrab = new Vector4(0.74f, 0.34f, 0.52f, 1.0f);
-        var sliderGrabActive = new Vector4(0.66f, 0.26f, 0.46f, 1.0f);
+        // 根据主题方案选择基色：导入样式用深色兜底，避免浅色文字在深色背景下不可见
+        Vector4 windowBg, childBg, text, border, separator;
+        Vector4 frameBg, frameBgHovered, frameBgActive, popupBg;
+        Vector4 button, buttonHovered, buttonActive;
+        Vector4 header, headerHovered, headerActive;
+        Vector4 tab, tabHovered, tabActive;
+        Vector4 scrollbarBg, scrollbarGrab, scrollbarGrabHovered, scrollbarGrabActive;
+        Vector4 sliderGrab, sliderGrabActive;
+
+        if (useImported) {
+            // 深色基色 — 大多数 DS1 样式基于深色主题，未覆盖的部分也能保证可读性
+            windowBg = new Vector4(0.08f, 0.08f, 0.09f, 1.0f);
+            childBg = new Vector4(0.11f, 0.11f, 0.12f, 1.0f);
+            text = new Vector4(0.92f, 0.92f, 0.92f, 1.0f);
+            border = new Vector4(0.30f, 0.30f, 0.36f, 0.50f);
+            separator = new Vector4(0.28f, 0.28f, 0.34f, 0.60f);
+            frameBg = new Vector4(0.16f, 0.16f, 0.19f, 1.0f);
+            frameBgHovered = new Vector4(0.22f, 0.22f, 0.26f, 1.0f);
+            frameBgActive = new Vector4(0.28f, 0.28f, 0.32f, 1.0f);
+            popupBg = new Vector4(0.12f, 0.12f, 0.14f, 1.0f);
+            button = new Vector4(0.20f, 0.20f, 0.24f, 1.0f);
+            buttonHovered = new Vector4(0.28f, 0.28f, 0.33f, 1.0f);
+            buttonActive = new Vector4(0.36f, 0.36f, 0.42f, 1.0f);
+            header = new Vector4(0.18f, 0.18f, 0.22f, 1.0f);
+            headerHovered = new Vector4(0.26f, 0.26f, 0.31f, 1.0f);
+            headerActive = new Vector4(0.34f, 0.34f, 0.40f, 1.0f);
+            tab = new Vector4(0.16f, 0.16f, 0.19f, 1.0f);
+            tabHovered = new Vector4(0.26f, 0.26f, 0.31f, 1.0f);
+            tabActive = new Vector4(0.30f, 0.30f, 0.36f, 1.0f);
+            scrollbarBg = new Vector4(0.06f, 0.06f, 0.07f, 0.50f);
+            scrollbarGrab = new Vector4(0.31f, 0.31f, 0.36f, 1.0f);
+            scrollbarGrabHovered = new Vector4(0.41f, 0.41f, 0.47f, 1.0f);
+            scrollbarGrabActive = new Vector4(0.51f, 0.51f, 0.58f, 1.0f);
+            sliderGrab = new Vector4(0.41f, 0.41f, 0.51f, 1.0f);
+            sliderGrabActive = new Vector4(0.51f, 0.51f, 0.61f, 1.0f);
+        } else {
+            // 粉白基色
+            windowBg = new Vector4(0.992f, 0.940f, 0.948f, 1.0f);
+            childBg = new Vector4(1.0f, 0.970f, 0.976f, 1.0f);
+            text = new Vector4(0.42f, 0.28f, 0.35f, 1.0f);
+            border = new Vector4(0.910f, 0.700f, 0.750f, 0.65f);
+            separator = new Vector4(0.925f, 0.670f, 0.730f, 0.70f);
+            frameBg = new Vector4(1.0f, 0.985f, 0.980f, 1.0f);
+            frameBgHovered = new Vector4(0.985f, 0.905f, 0.920f, 1.0f);
+            frameBgActive = new Vector4(0.955f, 0.795f, 0.835f, 1.0f);
+            popupBg = new Vector4(1.0f, 0.960f, 0.965f, 1.0f);
+            button = new Vector4(1.0f, 0.985f, 0.980f, 1.0f);
+            buttonHovered = new Vector4(0.975f, 0.850f, 0.875f, 1.0f);
+            buttonActive = new Vector4(0.925f, 0.680f, 0.735f, 1.0f);
+            header = new Vector4(0.965f, 0.840f, 0.870f, 1.0f);
+            headerHovered = new Vector4(0.940f, 0.760f, 0.810f, 1.0f);
+            headerActive = new Vector4(0.900f, 0.660f, 0.720f, 1.0f);
+            tab = new Vector4(0.990f, 0.950f, 0.955f, 1.0f);
+            tabHovered = new Vector4(0.950f, 0.820f, 0.850f, 1.0f);
+            tabActive = new Vector4(0.975f, 0.890f, 0.905f, 1.0f);
+            scrollbarBg = new Vector4(0.940f, 0.850f, 0.860f, 0.35f);
+            scrollbarGrab = new Vector4(0.900f, 0.560f, 0.640f, 0.68f);
+            scrollbarGrabHovered = new Vector4(0.870f, 0.460f, 0.560f, 0.82f);
+            scrollbarGrabActive = new Vector4(0.820f, 0.380f, 0.500f, 1.0f);
+            sliderGrab = new Vector4(0.74f, 0.34f, 0.52f, 1.0f);
+            sliderGrabActive = new Vector4(0.66f, 0.26f, 0.46f, 1.0f);
+        }
 
         if (this.config.ActiveThemePreset == ThemePreset.Custom) {
             var accent = this.config.CustomThemeAccentColor;
@@ -319,23 +371,23 @@ public sealed partial class ConfigWindow {
 
         PushColor(ImGuiCol.WindowBg, windowBg);
         PushColor(ImGuiCol.ChildBg, childBg);
-        PushColor(ImGuiCol.FrameBg, new Vector4(1.0f, 0.985f, 0.980f, 1.0f));
-        PushColor(ImGuiCol.FrameBgHovered, new Vector4(0.985f, 0.905f, 0.920f, 1.0f));
-        PushColor(ImGuiCol.FrameBgActive, new Vector4(0.955f, 0.795f, 0.835f, 1.0f));
-        PushColor(ImGuiCol.PopupBg, new Vector4(1.0f, 0.960f, 0.965f, 1.0f));
-        PushColor(ImGuiCol.Button, new Vector4(1.0f, 0.985f, 0.980f, 1.0f));
-        PushColor(ImGuiCol.ButtonHovered, new Vector4(0.975f, 0.850f, 0.875f, 1.0f));
+        PushColor(ImGuiCol.FrameBg, frameBg);
+        PushColor(ImGuiCol.FrameBgHovered, frameBgHovered);
+        PushColor(ImGuiCol.FrameBgActive, frameBgActive);
+        PushColor(ImGuiCol.PopupBg, popupBg);
+        PushColor(ImGuiCol.Button, button);
+        PushColor(ImGuiCol.ButtonHovered, buttonHovered);
         PushColor(ImGuiCol.ButtonActive, buttonActive);
-        PushColor(ImGuiCol.Header, new Vector4(0.965f, 0.840f, 0.870f, 1.0f));
-        PushColor(ImGuiCol.HeaderHovered, new Vector4(0.940f, 0.760f, 0.810f, 1.0f));
+        PushColor(ImGuiCol.Header, header);
+        PushColor(ImGuiCol.HeaderHovered, headerHovered);
         PushColor(ImGuiCol.HeaderActive, headerActive);
-        PushColor(ImGuiCol.Tab, new Vector4(0.990f, 0.950f, 0.955f, 1.0f));
-        PushColor(ImGuiCol.TabHovered, new Vector4(0.950f, 0.820f, 0.850f, 1.0f));
+        PushColor(ImGuiCol.Tab, tab);
+        PushColor(ImGuiCol.TabHovered, tabHovered);
         PushColor(ImGuiCol.TabActive, tabActive);
         PushColor(ImGuiCol.Separator, separator);
         PushColor(ImGuiCol.Border, border);
         PushColor(ImGuiCol.Text, text);
-        PushColor(ImGuiCol.ScrollbarBg, new Vector4(0.940f, 0.850f, 0.860f, 0.35f));
+        PushColor(ImGuiCol.ScrollbarBg, scrollbarBg);
         PushColor(ImGuiCol.ScrollbarGrab, scrollbarGrab);
         PushColor(ImGuiCol.ScrollbarGrabHovered, scrollbarGrabHovered);
         PushColor(ImGuiCol.ScrollbarGrabActive, scrollbarGrabActive);

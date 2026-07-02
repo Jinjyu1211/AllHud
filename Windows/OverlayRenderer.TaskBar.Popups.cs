@@ -364,7 +364,51 @@ public sealed partial class OverlayRenderer {
         var count = GetCachedCurrencyCount(currency.ItemId);
         var countText = count >= 0 ? $"{count:N0}" : "--";
         var text = this.config.TaskBarCurrencyShowName ? $"{currency.Name} {countText}" : countText;
-        return new TaskBarItem(text, $"{currency.Name}：{countText}", _ => { }, _ => OpenCurrenciesWindow(), PopupId: CurrencyPopupId, MeasureText: this.config.TaskBarCurrencyShowName ? $"{currency.Name} 000,000,000" : "000,000,000", GameIconId: currency.IconId);
+        var tooltip = $"{currency.Name}：{countText}";
+
+        // 借鉴 Umbra：限量神典石追加每周进度
+        if (currency.Slot == TomestoneSlot.WeeklyLimited) {
+            var weekly = GetCachedWeeklyTomestoneProgress();
+            if (weekly.Capacity > 0) {
+                tooltip += $"\n本周：{weekly.Acquired:N0} / {weekly.Capacity:N0}";
+            }
+        }
+
+        return new TaskBarItem(text, tooltip, _ => { }, _ => OpenCurrenciesWindow(), PopupId: CurrencyPopupId, MeasureText: this.config.TaskBarCurrencyShowName ? $"{currency.Name} 000,000,000" : "000,000,000", GameIconId: currency.IconId);
+    }
+
+    private readonly record struct WeeklyTomestoneProgress(int Acquired, int Capacity);
+
+    private WeeklyTomestoneProgress? cachedWeeklyProgress;
+    private DateTime nextWeeklyProgressRefreshAt = DateTime.MinValue;
+    private static readonly TimeSpan WeeklyProgressCacheDuration = TimeSpan.FromSeconds(2);
+
+    private WeeklyTomestoneProgress GetCachedWeeklyTomestoneProgress() {
+        var now = DateTime.UtcNow;
+        if (this.cachedWeeklyProgress.HasValue && now < this.nextWeeklyProgressRefreshAt) {
+            return this.cachedWeeklyProgress.Value;
+        }
+
+        var progress = GetWeeklyTomestoneProgress();
+        this.cachedWeeklyProgress = progress;
+        this.nextWeeklyProgressRefreshAt = now + WeeklyProgressCacheDuration;
+        return progress;
+    }
+
+    private unsafe WeeklyTomestoneProgress GetWeeklyTomestoneProgress() {
+        try {
+            var im = InventoryManager.Instance();
+            if (im is null) {
+                return new WeeklyTomestoneProgress(0, 0);
+            }
+
+            return new WeeklyTomestoneProgress(
+                im->GetWeeklyAcquiredTomestoneCount(),
+                InventoryManager.GetLimitedTomestoneWeeklyLimit()
+            );
+        } catch {
+            return new WeeklyTomestoneProgress(0, 0);
+        }
     }
 
     private bool TryCreateQuickMenuTaskBarItem(string componentId, out TaskBarItem item) {
@@ -863,7 +907,13 @@ public sealed partial class OverlayRenderer {
         }
     }
 
-    private sealed record CurrencyDisplayInfo(uint ItemId, string Name, uint IconId);
+    private sealed record CurrencyDisplayInfo(uint ItemId, string Name, uint IconId, TomestoneSlot Slot = TomestoneSlot.None);
+
+    private enum TomestoneSlot {
+        None,
+        NonLimited,   // Tomestones.RowId == 2，当前版本不限量
+        WeeklyLimited, // Tomestones.RowId == 3，每周上限
+    }
 
     private static readonly CurrencyDisplayInfo[] CurrencyDisplayOptions = [
         new(CurrencyItemGil, "金币", 0),
@@ -878,6 +928,10 @@ public sealed partial class OverlayRenderer {
 
     private List<CurrencyDisplayInfo>? scannedTomestones;
 
+    // 借鉴 Umbra：Tomestones sheet 仅 5 行，对应当前版本的槽位
+    //   RowId == 2 → 当前版本不限量神典石
+    //   RowId == 3 → 当前版本限量神典石（每周上限）
+    // 旧版本神典石不引用这两行，自动被过滤
     private IEnumerable<CurrencyDisplayInfo> GetScannedTomestones() {
         if (this.scannedTomestones is not null) {
             return this.scannedTomestones;
@@ -888,12 +942,18 @@ public sealed partial class OverlayRenderer {
             var sheet = this.dataManager.GetExcelSheet<LuminaTomestonesItem>();
             if (sheet is not null) {
                 foreach (var row in sheet) {
+                    var slot = row.Tomestones.RowId;
+                    if (slot is not (2 or 3)) {
+                        continue;
+                    }
+
                     var itemRef = row.Item;
                     if (itemRef.IsValid && itemRef.RowId != CurrencyItemPoetics) {
                         if (this.dataManager.GetExcelSheet<LuminaItem>().TryGetRow(itemRef.RowId, out var item)) {
                             var name = GetExcelText(item.Name.ExtractText());
                             if (!string.IsNullOrWhiteSpace(name)) {
-                                result.Add(new CurrencyDisplayInfo(itemRef.RowId, name, item.Icon));
+                                var slotType = slot == 3 ? TomestoneSlot.WeeklyLimited : TomestoneSlot.NonLimited;
+                                result.Add(new CurrencyDisplayInfo(itemRef.RowId, name, item.Icon, slotType));
                             }
                         }
                     }
@@ -916,7 +976,7 @@ public sealed partial class OverlayRenderer {
         try {
             if (this.dataManager.GetExcelSheet<LuminaItem>().TryGetRow(itemId, out var item)) {
                 var name = GetExcelText(item.Name.ExtractText());
-                return new CurrencyDisplayInfo(itemId, string.IsNullOrWhiteSpace(name) ? fallback.Name : name, item.Icon);
+                return new CurrencyDisplayInfo(itemId, string.IsNullOrWhiteSpace(name) ? fallback.Name : name, item.Icon, fallback.Slot);
             }
         } catch {
         }
@@ -930,7 +990,7 @@ public sealed partial class OverlayRenderer {
             try {
                 if (this.dataManager.GetExcelSheet<LuminaItem>().TryGetRow(option.ItemId, out var item)) {
                     var name = GetExcelText(item.Name.ExtractText());
-                    resolved = new CurrencyDisplayInfo(option.ItemId, string.IsNullOrWhiteSpace(name) ? option.Name : name, item.Icon);
+                    resolved = new CurrencyDisplayInfo(option.ItemId, string.IsNullOrWhiteSpace(name) ? option.Name : name, item.Icon, option.Slot);
                 }
             } catch {
             }

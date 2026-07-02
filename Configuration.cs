@@ -100,6 +100,14 @@ public sealed class Configuration : IPluginConfiguration {
     public bool ShowPartyFoodCheck { get; set; }
     public bool ShowPartyLimitBreakBar { get; set; }
     public int PartyLimitBreakBarPosition { get; set; }
+    public bool ShowWorldMarkers { get; set; } = true;
+    public bool ShowGatheringNodeMarkers { get; set; } = true;
+    public bool ShowFlagMarker { get; set; } = true;
+    public bool ShowPlayerPositionMarker { get; set; }
+    public bool ShowPlayerPositionLabel { get; set; } = true;
+    public int WorldMarkerFadeDistance { get; set; } = 32;
+    public int WorldMarkerFadeAttenuation { get; set; } = 10;
+    public int WorldMarkerMaxVisibleDistance { get; set; } = 0;
     public bool ShowTaskBar { get; set; }
     public int TaskBarEdge { get; set; }
     public bool TaskBarStretchToEdges { get; set; }
@@ -122,6 +130,7 @@ public sealed class Configuration : IPluginConfiguration {
     public bool TaskBarShowPluginList { get; set; } = true;
     public bool TaskBarShowPluginShortcut { get; set; }
     public bool TaskBarShowServerInfoBar { get; set; } = true;
+    public bool HideNativeServerInfoBar { get; set; }
     public bool TaskBarShowTeleport { get; set; }
     public bool TaskBarShowCoordinates { get; set; }
     public bool TaskBarShowCoordinatesTerritory { get; set; } = true;

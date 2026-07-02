@@ -798,6 +798,11 @@ public sealed partial class ConfigWindow {
     private void DrawTaskBarAdvancedPage() {
         DrawTargetInfoSubsection("高级");
         DrawCheckbox("下载并缓存插件图标", nameof(this.config.TaskBarDownloadPluginIcons), this.config.TaskBarDownloadPluginIcons, value => this.config.TaskBarDownloadPluginIcons = value);
+        DrawCheckbox("隐藏原生服务器信息栏", nameof(this.config.HideNativeServerInfoBar), this.config.HideNativeServerInfoBar, value => this.config.HideNativeServerInfoBar = value);
+        ImGui.SameLine();
+        ImGui.PushTextWrapPos();
+        ImGui.TextDisabled("隐藏游戏顶部的原生服务器信息栏（DtrBar），仅保留自定义任务栏");
+        ImGui.PopTextWrapPos();
     }
 
     private void DrawTaskBarPageTabs() {

@@ -25,6 +25,7 @@ public sealed partial class ConfigWindow {
         任务栏,
         技能,
         外观,
+        世界标记,
         调试,
     }
 
@@ -578,6 +579,7 @@ public sealed partial class ConfigWindow {
         DrawNavButton(ConfigPage.任务栏, "任务栏");
         DrawNavButton(ConfigPage.技能, "独立监控");
         DrawNavButton(ConfigPage.外观, "外观主题");
+        DrawNavButton(ConfigPage.世界标记, "世界标记");
         DrawNavButton(ConfigPage.调试, "调试");
 
         ImGui.Unindent(4.0f);
@@ -657,6 +659,7 @@ public sealed partial class ConfigWindow {
             ConfigPage.任务栏 => new Vector4(0.20f, 0.58f, 0.72f, 1.0f),
             ConfigPage.技能 => new Vector4(0.42f, 0.36f, 0.72f, 1.0f),
             ConfigPage.外观 => new Vector4(0.55f, 0.40f, 0.75f, 1.0f),
+            ConfigPage.世界标记 => new Vector4(0.18f, 0.62f, 0.58f, 1.0f),
             ConfigPage.调试 => new Vector4(0.58f, 0.36f, 0.66f, 1.0f),
             _ => new Vector4(0.42f, 0.17f, 0.28f, 1.0f),
         };
@@ -741,6 +744,9 @@ public sealed partial class ConfigWindow {
                 break;
             case ConfigPage.外观:
                 DrawAppearancePage();
+                break;
+            case ConfigPage.世界标记:
+                DrawWorldMarkersPage();
                 break;
             case ConfigPage.调试:
                 DrawDebugPage();

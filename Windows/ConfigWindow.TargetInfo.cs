@@ -76,12 +76,39 @@ public sealed partial class ConfigWindow {
                 DrawColorPicker("分隔线", this.config.StatusSectionCustomDivider, value => this.config.StatusSectionCustomDivider = value);
             }
 
-            DrawOpacitySlider("背景透明度", "status_bg_opacity", this.config.StatusPanelBackgroundOpacity, value => this.config.StatusPanelBackgroundOpacity = value);
-            DrawOpacitySlider("边框透明度", "status_border_opacity", this.config.StatusPanelBorderOpacity, value => this.config.StatusPanelBorderOpacity = value);
-            DrawOpacitySlider("阴影透明度", "status_shadow_opacity", this.config.StatusPanelShadowOpacity, value => this.config.StatusPanelShadowOpacity = value);
-            DrawOpacitySlider("标签背景透明度", "status_label_bg_opacity", this.config.StatusSectionLabelBackgroundOpacity, value => this.config.StatusSectionLabelBackgroundOpacity = value);
-            DrawOpacitySlider("标签边框透明度", "status_label_border_opacity", this.config.StatusSectionLabelBorderOpacity, value => this.config.StatusSectionLabelBorderOpacity = value);
-            DrawOpacitySlider("分隔线透明度", "status_divider_opacity", this.config.StatusSectionDividerOpacity, value => this.config.StatusSectionDividerOpacity = value);
+            var bgOpacity = this.config.StatusPanelBackgroundOpacity;
+            if (DrawInlineOpacitySlider("背景透明度", "status_bg_opacity", ref bgOpacity, 0f)) {
+                this.config.StatusPanelBackgroundOpacity = bgOpacity;
+                this.saveConfig();
+            }
+            var borderOpacity = this.config.StatusPanelBorderOpacity;
+            if (DrawInlineOpacitySlider("边框透明度", "status_border_opacity", ref borderOpacity, 0f)) {
+                this.config.StatusPanelBorderOpacity = borderOpacity;
+                this.saveConfig();
+            }
+            var shadowOpacity = this.config.StatusPanelShadowOpacity;
+            if (DrawInlineOpacitySlider("阴影透明度", "status_shadow_opacity", ref shadowOpacity, 0f)) {
+                this.config.StatusPanelShadowOpacity = shadowOpacity;
+                this.saveConfig();
+            }
+            var labelBgOpacity = this.config.StatusSectionLabelBackgroundOpacity;
+            if (DrawInlineOpacitySlider("标签背景透明度", "status_label_bg_opacity", ref labelBgOpacity, 0f)) {
+                this.config.StatusSectionLabelBackgroundOpacity = labelBgOpacity;
+                this.saveConfig();
+            }
+            var labelBorderOpacity = this.config.StatusSectionLabelBorderOpacity;
+            if (DrawInlineOpacitySlider("标签边框透明度", "status_label_border_opacity", ref labelBorderOpacity, 0f)) {
+                this.config.StatusSectionLabelBorderOpacity = labelBorderOpacity;
+                this.saveConfig();
+            }
+            var dividerOpacity = this.config.StatusSectionDividerOpacity;
+            if (DrawInlineOpacitySlider("分隔线透明度", "status_divider_opacity", ref dividerOpacity, 0f)) {
+                this.config.StatusSectionDividerOpacity = dividerOpacity;
+                this.saveConfig();
+            }
+
+            DrawTargetInfoSubsection("预览");
+            DrawStatusBarPreview();
         });
     }
 
@@ -213,16 +240,70 @@ public sealed partial class ConfigWindow {
         }
     }
 
-    private void DrawOpacitySlider(string label, string id, float current, Action<float> setter, float minValue = 0.0f, float maxValue = 1.0f) {
-        var percentValue = current * 100.0f;
-        ImGui.AlignTextToFramePadding();
-        ImGui.TextUnformatted(label);
-        ImGui.SameLine(0.0f, 8.0f);
-        ImGui.SetNextItemWidth(160.0f);
-        if (ImGui.SliderFloat($"##{id}", ref percentValue, minValue * 100.0f, maxValue * 100.0f, $"{percentValue:0}%")) {
-            setter(Math.Clamp(percentValue / 100.0f, minValue, maxValue));
-            this.saveConfig();
-        }
+    private Vector4 StatusPreviewBackground => this.config.StatusPanelUseAccentColor
+        ? new Vector4(1.0f, 0.94f, 0.97f, this.config.StatusPanelBackgroundOpacity)
+        : this.config.StatusPanelCustomBackground with { W = this.config.StatusPanelBackgroundOpacity };
+
+    private Vector4 StatusPreviewBorder => this.config.StatusPanelUseAccentColor
+        ? new Vector4(0.93f, 0.58f, 0.74f, this.config.StatusPanelBorderOpacity)
+        : this.config.StatusPanelCustomBorder with { W = this.config.StatusPanelBorderOpacity };
+
+    private Vector4 StatusPreviewShadow => this.config.StatusPanelUseAccentColor
+        ? new Vector4(0.20f, 0.08f, 0.14f, this.config.StatusPanelShadowOpacity)
+        : this.config.StatusPanelCustomShadow with { W = this.config.StatusPanelShadowOpacity };
+
+    private Vector4 StatusPreviewLabelBackground => this.config.StatusPanelUseAccentColor
+        ? new Vector4(1.0f, 0.98f, 1.0f, this.config.StatusSectionLabelBackgroundOpacity)
+        : this.config.StatusSectionCustomLabelBackground with { W = this.config.StatusSectionLabelBackgroundOpacity };
+
+    private Vector4 StatusPreviewLabelBorder => this.config.StatusPanelUseAccentColor
+        ? new Vector4(0.93f, 0.58f, 0.74f, this.config.StatusSectionLabelBorderOpacity)
+        : this.config.StatusSectionCustomLabelBorder with { W = this.config.StatusSectionLabelBorderOpacity };
+
+    private Vector4 StatusPreviewDivider => this.config.StatusPanelUseAccentColor
+        ? new Vector4(0.93f, 0.58f, 0.74f, this.config.StatusSectionDividerOpacity)
+        : this.config.StatusSectionCustomDivider with { W = this.config.StatusSectionDividerOpacity };
+
+    private void DrawStatusBarPreview() {
+        var drawList = ImGui.GetWindowDrawList();
+        var cursor = ImGui.GetCursorScreenPos();
+        var width = Math.Min(320f, ImGui.GetContentRegionAvail().X);
+        var height = 80f;
+
+        drawList.AddRectFilled(cursor + new Vector2(4f, 4f), cursor + new Vector2(width + 4f, height + 4f),
+            ImGui.GetColorU32(StatusPreviewShadow), 6f);
+
+        drawList.AddRectFilled(cursor, cursor + new Vector2(width, height),
+            ImGui.GetColorU32(StatusPreviewBackground), 6f);
+        drawList.AddRect(cursor, cursor + new Vector2(width, height),
+            ImGui.GetColorU32(StatusPreviewBorder), 6f, 0, 1f);
+
+        var labelPos = cursor + new Vector2(10f, 8f);
+        var labelSize = new Vector2(50f, 18f);
+        drawList.AddRectFilled(labelPos, labelPos + labelSize,
+            ImGui.GetColorU32(StatusPreviewLabelBackground), 4f);
+        drawList.AddRect(labelPos, labelPos + labelSize,
+            ImGui.GetColorU32(StatusPreviewLabelBorder), 4f, 0, 1f);
+        drawList.AddText(labelPos + new Vector2(6f, 2f),
+            ImGui.GetColorU32(new Vector4(0.46f, 0.27f, 0.36f, 0.98f)), "强化");
+
+        var iconPos = cursor + new Vector2(10f, 34f);
+        drawList.AddRectFilled(iconPos, iconPos + new Vector2(24f, 24f),
+            ImGui.GetColorU32(new Vector4(0.8f, 0.6f, 0.8f, 0.6f)), 4f);
+        drawList.AddRect(iconPos, iconPos + new Vector2(24f, 24f),
+            ImGui.GetColorU32(StatusPreviewBorder), 4f, 0, 1f);
+
+        var iconPos2 = cursor + new Vector2(42f, 34f);
+        drawList.AddRectFilled(iconPos2, iconPos2 + new Vector2(24f, 24f),
+            ImGui.GetColorU32(new Vector4(0.7f, 0.5f, 0.7f, 0.6f)), 4f);
+        drawList.AddRect(iconPos2, iconPos2 + new Vector2(24f, 24f),
+            ImGui.GetColorU32(StatusPreviewBorder), 4f, 0, 1f);
+
+        var dividerY = cursor.Y + height - 16f;
+        drawList.AddLine(cursor + new Vector2(10f, dividerY), cursor + new Vector2(width - 10f, dividerY),
+            ImGui.GetColorU32(StatusPreviewDivider), 1f);
+
+        ImGui.Dummy(new Vector2(width, height + 4f));
     }
 
 }

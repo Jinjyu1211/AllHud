@@ -33,6 +33,7 @@ using LuminaClassJob = Lumina.Excel.Sheets.ClassJob;
 using LuminaMainCommand = Lumina.Excel.Sheets.MainCommand;
 using LuminaMainCommandCategory = Lumina.Excel.Sheets.MainCommandCategory;
 using LuminaTerritoryType = Lumina.Excel.Sheets.TerritoryType;
+using AllHud.Markers;
 
 namespace AllHud.Windows;
 
@@ -169,6 +170,7 @@ public sealed partial class OverlayRenderer {
     private readonly IDtrBar dtrBar;
     private readonly IDalamudPluginInterface pluginInterface;
     private readonly Action saveConfig;
+    private readonly WorldMarkerSystem worldMarkerSystem;
     private readonly string pluginIconCacheDirectory;
     private readonly Dictionary<int, IFontHandle> hudFonts = [];
     private readonly Dictionary<int, IFontHandle> iconFonts = [];
@@ -287,10 +289,12 @@ public sealed partial class OverlayRenderer {
         this.lastSavedTargetInfoCastBarPosition = config.CustomTargetInfoCastBarPosition;
         this.lastSavedTargetInfoStatusBarPosition = config.CustomTargetInfoStatusBarPosition;
         this.overlayStartupWarmupFrames = 2;
+        this.worldMarkerSystem = new WorldMarkerSystem(config, dataManager, objectTable, gameGui);
     }
 
     public void Dispose() {
         ResetNativeCursorIfNeeded();
+        try { this.worldMarkerSystem?.Dispose(); } catch { }
         foreach (var fontHandle in this.hudFonts.Values) {
             fontHandle.Dispose();
         }
@@ -313,6 +317,14 @@ public sealed partial class OverlayRenderer {
         this.pluginListPopupDrawnThisFrame = false;
         this.frameGameIconWrapCache.Clear();
         ApplyKnownFloatingShortcutWindowHides();
+        ApplyNativeDtrBarHide();
+
+        try {
+            this.worldMarkerSystem?.Tick(DateTime.UtcNow);
+        } catch { }
+        try {
+            this.worldMarkerSystem?.Draw();
+        } catch { }
 
         var flags = ImGuiWindowFlags.NoTitleBar
                     | ImGuiWindowFlags.NoSavedSettings
@@ -344,6 +356,19 @@ public sealed partial class OverlayRenderer {
         }
 
         TryApplyKnownFloatingShortcutWindowHides();
+    }
+
+    private unsafe void ApplyNativeDtrBarHide() {
+        if (!this.config.HideNativeServerInfoBar) return;
+        try {
+            var addonPtr = this.gameGui.GetAddonByName("_DTR");
+            if (addonPtr.Address != nint.Zero) {
+                var addon = (AtkUnitBase*)addonPtr.Address;
+                if (addon->RootNode is not null && addon->RootNode->IsVisible()) {
+                    addon->RootNode->ToggleVisibility(false);
+                }
+            }
+        } catch { }
     }
 
     private unsafe void TryApplyKnownFloatingShortcutWindowHides() {

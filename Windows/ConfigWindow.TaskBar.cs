@@ -1038,6 +1038,9 @@ public sealed partial class ConfigWindow {
 
     private List<CurrencyDisplayOption>? scannedTomestones;
 
+    // 借鉴 Umbra：仅取 Tomestones.RowId 为 2 或 3 的当前版本神典石
+    //   RowId == 2 → 当前版本不限量神典石
+    //   RowId == 3 → 当前版本限量神典石（每周上限）
     private IEnumerable<CurrencyDisplayOption> GetScannedTomestones() {
         if (this.scannedTomestones is not null) {
             return this.scannedTomestones;
@@ -1048,6 +1051,11 @@ public sealed partial class ConfigWindow {
             var sheet = this.dataManager.GetExcelSheet<LuminaTomestonesItem>();
             if (sheet is not null) {
                 foreach (var row in sheet) {
+                    var slot = row.Tomestones.RowId;
+                    if (slot is not (2 or 3)) {
+                        continue;
+                    }
+
                     var itemRef = row.Item;
                     if (itemRef.IsValid && itemRef.RowId != 28) {
                         if (this.dataManager.GetExcelSheet<LuminaItem>().TryGetRow(itemRef.RowId, out var item)) {

@@ -52,6 +52,63 @@ public sealed partial class ConfigWindow {
         ImGui.TextDisabled("关闭时仅保留指示标，避免遮挡画面");
         ImGui.PopTextWrapPos();
 
+        DrawCheckbox("任务标记", nameof(this.config.ShowQuestMarkers), this.config.ShowQuestMarkers, value => {
+            this.config.ShowQuestMarkers = value;
+            this.saveConfig();
+        });
+        ImGui.SameLine();
+        ImGui.PushTextWrapPos();
+        ImGui.TextDisabled("(默认开) 读取 AgentMap 原生地图标记，显示当前地图的任务图标");
+        ImGui.PopTextWrapPos();
+
+        DrawCheckbox("地图链接 (Aetheryte)", nameof(this.config.ShowMapLinkMarkers), this.config.ShowMapLinkMarkers, value => {
+            this.config.ShowMapLinkMarkers = value;
+            this.saveConfig();
+        });
+        ImGui.SameLine();
+        ImGui.PushTextWrapPos();
+        ImGui.TextDisabled("(默认开) 显示场景内的水晶与以太网碎片位置");
+        ImGui.PopTextWrapPos();
+
+        ImGui.Spacing();
+        DrawTargetInfoSubsection("距离与指南针");
+
+        DrawCheckbox("显示距离", nameof(this.config.ShowMarkerDistance), this.config.ShowMarkerDistance, value => {
+            this.config.ShowMarkerDistance = value;
+            this.saveConfig();
+        });
+        ImGui.SameLine();
+        ImGui.PushTextWrapPos();
+        ImGui.TextDisabled("在标记下方显示与玩家的距离 (yalms)");
+        ImGui.PopTextWrapPos();
+
+        DrawCheckbox("指南针", nameof(this.config.ShowCompass), this.config.ShowCompass, value => {
+            this.config.ShowCompass = value;
+            this.saveConfig();
+        });
+        ImGui.SameLine();
+        ImGui.PushTextWrapPos();
+        ImGui.TextDisabled("屏幕外标记在屏幕边缘显示方向箭头");
+        ImGui.PopTextWrapPos();
+
+        ImGui.PushItemWidth(120f);
+        var compassRadius = this.config.CompassRadius;
+        if (ImGui.SliderInt($"指南针半径##{nameof(this.config.CompassRadius)}", ref compassRadius, 50, 800)) {
+            this.config.CompassRadius = compassRadius;
+            this.saveConfig();
+        }
+        ImGui.SameLine();
+        ImGui.TextDisabled("px");
+
+        var compassScale = this.config.CompassIconScale;
+        if (ImGui.SliderInt($"指南针缩放##{nameof(this.config.CompassIconScale)}", ref compassScale, 50, 200)) {
+            this.config.CompassIconScale = compassScale;
+            this.saveConfig();
+        }
+        ImGui.SameLine();
+        ImGui.TextDisabled("%");
+        ImGui.PopItemWidth();
+
         ImGui.Spacing();
         DrawTargetInfoSubsection("淡出设置");
 
@@ -87,6 +144,10 @@ public sealed partial class ConfigWindow {
         ImGui.BulletText("采集点：产出物品每 2 秒轮播，淡出参数可在上方调整");
         ImGui.BulletText("地图标记：读取 AgentMap 原生 FlagMapMarkers，遵循统一淡出设置");
         ImGui.BulletText("玩家位置：8-18 米半透明渐隐，避免贴脸遮挡");
+        ImGui.BulletText("任务标记：读取 AgentMap.MapMarkers，过滤不可用任务图标");
+        ImGui.BulletText("地图链接：扫描 ObjectTable 中的水晶，使用游戏原生图标 60443");
+        ImGui.BulletText("指南针：屏幕外标记在玩家屏幕位置 + 方向半径处显示箭头");
+        ImGui.BulletText("距离：所有标记下方显示 yalms 距离，可在开关中关闭");
         ImGui.PopTextWrapPos();
     }
 }

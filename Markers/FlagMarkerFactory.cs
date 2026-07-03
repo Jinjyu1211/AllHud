@@ -39,10 +39,10 @@ internal sealed class FlagMarkerFactory : WorldMarkerFactory {
 
             SetMarker(new WorldMarker {
                 Key = key,
-                Label = "Flag",
+                Label = string.Empty,
                 SubLabel = $"X:{mapCoords.X:F1} Y:{mapCoords.Y:F1}",
                 IconId = flag.MapMarker.IconId,
-                IconSize = 36,
+                IconSize = 32,
                 Position = worldPos,
                 MapId = flag.MapId,
                 FadeNear = _config.WorldMarkerFadeDistance,

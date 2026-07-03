@@ -14,13 +14,16 @@ public sealed class WorldMarkerSystem : IDisposable {
         Configuration config,
         IDataManager dataManager,
         IObjectTable objectTable,
-        IGameGui gameGui) {
+        IGameGui gameGui,
+        ITextureProvider textureProvider) {
         _config = config;
         _registry = new WorldMarkerRegistry();
-        _renderer = new WorldMarkerRenderer(gameGui, objectTable, _registry);
+        _renderer = new WorldMarkerRenderer(gameGui, objectTable, _registry, textureProvider);
 
         RegisterFactory(new GatheringNodeMarkerFactory(config, dataManager, objectTable));
         RegisterFactory(new FlagMarkerFactory(config));
+        RegisterFactory(new QuestMarkerFactory(config));
+        RegisterFactory(new MapLinkMarkerFactory(config, dataManager, objectTable));
     }
 
     private void RegisterFactory(WorldMarkerFactory factory) {
@@ -44,7 +47,7 @@ public sealed class WorldMarkerSystem : IDisposable {
 
     public void Draw() {
         if (!_config.ShowWorldMarkers) return;
-        _renderer.DrawWithDebug(_factories);
+        _renderer.DrawWithDebug(_factories, _config);
         _renderer.DrawPlayerPosition(_config);
     }
 

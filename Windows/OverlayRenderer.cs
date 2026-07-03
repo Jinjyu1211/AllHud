@@ -289,7 +289,7 @@ public sealed partial class OverlayRenderer {
         this.lastSavedTargetInfoCastBarPosition = config.CustomTargetInfoCastBarPosition;
         this.lastSavedTargetInfoStatusBarPosition = config.CustomTargetInfoStatusBarPosition;
         this.overlayStartupWarmupFrames = 2;
-        this.worldMarkerSystem = new WorldMarkerSystem(config, dataManager, objectTable, gameGui);
+        this.worldMarkerSystem = new WorldMarkerSystem(config, dataManager, objectTable, gameGui, textureProvider);
     }
 
     public void Dispose() {

@@ -16,6 +16,7 @@ public sealed class WorldMarker {
     public float FadeFar { get; set; } = 42.0f;
     public float MaxVisibleDistance { get; set; } = 0.0f;
     public bool ShowOnCompass { get; set; } = true;
+    public bool ShowDistance { get; set; } = true;
     public bool IsVisible { get; set; } = true;
     public uint MapId { get; set; }
 

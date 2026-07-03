@@ -105,6 +105,12 @@ public sealed class Configuration : IPluginConfiguration {
     public bool ShowFlagMarker { get; set; } = true;
     public bool ShowPlayerPositionMarker { get; set; }
     public bool ShowPlayerPositionLabel { get; set; } = true;
+    public bool ShowQuestMarkers { get; set; } = true;
+    public bool ShowMapLinkMarkers { get; set; } = true;
+    public bool ShowCompass { get; set; } = true;
+    public int CompassRadius { get; set; } = 400;
+    public int CompassIconScale { get; set; } = 100;
+    public bool ShowMarkerDistance { get; set; } = true;
     public int WorldMarkerFadeDistance { get; set; } = 32;
     public int WorldMarkerFadeAttenuation { get; set; } = 10;
     public int WorldMarkerMaxVisibleDistance { get; set; } = 0;

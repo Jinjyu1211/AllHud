@@ -18,4 +18,20 @@ internal static class MapCoordinateConverter {
 
         return (mapX, mapY);
     }
+
+    public static unsafe (float X, float Z) MapToWorld(float mapX, float mapY) {
+        var agentMap = AgentMap.Instance();
+        if (agentMap is null || agentMap->CurrentMapId == 0) {
+            return (mapX, mapY);
+        }
+
+        var scale = (uint)agentMap->CurrentMapSizeFactor;
+        var offsetX = -agentMap->CurrentOffsetX;
+        var offsetY = -agentMap->CurrentOffsetY;
+
+        var worldX = (mapX - 1.0f - 0.02f * offsetX - 2048f / scale) / 0.02f;
+        var worldZ = (mapY - 1.0f - 0.02f * offsetY - 2048f / scale) / 0.02f;
+
+        return (worldX, worldZ);
+    }
 }

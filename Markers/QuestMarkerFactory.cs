@@ -30,18 +30,12 @@ internal sealed class QuestMarkerFactory : WorldMarkerFactory {
 
         try {
             var agentMap = AgentMap.Instance();
-            if (agentMap is null) {
-                RemoveAllMarkers();
-                return;
-            }
+            if (agentMap is null) return;
 
             var count = agentMap->MapMarkerCount;
-            if (count == 0) {
-                RemoveAllMarkers();
-                return;
-            }
-
             var currentMapId = agentMap->CurrentMapId;
+            var scale = agentMap->SelectedMapSizeFactorFloat;
+            if (scale <= 0f) scale = 1f;
             List<string> activeKeys = new();
 
             for (int i = 0; i < count; i++) {
@@ -50,9 +44,8 @@ internal sealed class QuestMarkerFactory : WorldMarkerFactory {
                 if (iconId == 0) continue;
                 if (UnavailableQuestIconIds.Contains(iconId)) continue;
 
-                var worldX = m.MapMarker.X / 16.0f;
-                var worldZ = m.MapMarker.Y / 16.0f;
-                if (float.IsNaN(worldX) || float.IsNaN(worldZ)) continue;
+                var worldX = m.MapMarker.X / 16.0f / scale;
+                var worldZ = m.MapMarker.Y / 16.0f / scale;
 
                 var key = $"QM_{i}_{iconId}";
                 activeKeys.Add(key);
@@ -64,9 +57,9 @@ internal sealed class QuestMarkerFactory : WorldMarkerFactory {
                     IconSize = 32,
                     Position = new Vector3(worldX, 0, worldZ),
                     MapId = currentMapId,
-                    FadeNear = _config.WorldMarkerFadeDistance,
-                    FadeFar = _config.WorldMarkerFadeDistance + _config.WorldMarkerFadeAttenuation,
-                    MaxVisibleDistance = _config.WorldMarkerMaxVisibleDistance,
+                    FadeNear = 0,
+                    FadeFar = 0,
+                    MaxVisibleDistance = 0,
                     ShowOnCompass = true,
                 });
             }
@@ -75,7 +68,6 @@ internal sealed class QuestMarkerFactory : WorldMarkerFactory {
                 RemoveMarker(staleKey);
             }
         } catch {
-            RemoveAllMarkers();
         }
     }
 }

@@ -37,17 +37,20 @@ internal sealed class FlagMarkerFactory : WorldMarkerFactory {
             var worldPos = new Vector3(flag.XFloat, 0, flag.YFloat);
             var mapCoords = MapCoordinateConverter.WorldToMap(worldPos.X, worldPos.Z);
 
+            uint iconId = flag.MapMarker.IconId;
+            if (iconId == 0) iconId = 60561;
+
             SetMarker(new WorldMarker {
                 Key = key,
                 Label = string.Empty,
                 SubLabel = $"X:{mapCoords.X:F1} Y:{mapCoords.Y:F1}",
-                IconId = flag.MapMarker.IconId,
+                IconId = iconId,
                 IconSize = 32,
                 Position = worldPos,
                 MapId = flag.MapId,
-                FadeNear = _config.WorldMarkerFadeDistance,
-                FadeFar = _config.WorldMarkerFadeDistance + _config.WorldMarkerFadeAttenuation,
-                MaxVisibleDistance = _config.WorldMarkerMaxVisibleDistance,
+                FadeNear = 0,
+                FadeFar = 0,
+                MaxVisibleDistance = 0,
                 ShowOnCompass = true,
             });
             foreach (var staleKey in ActiveMarkers.Select(m => m.Key).Where(k => k != key).ToList()) {

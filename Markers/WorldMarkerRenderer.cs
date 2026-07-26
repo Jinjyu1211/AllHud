@@ -2,7 +2,6 @@ using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Textures;
 using Dalamud.Interface.Textures.TextureWraps;
 using Dalamud.Plugin.Services;
-using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using System.Numerics;
 
 namespace AllHud.Markers;
@@ -12,50 +11,42 @@ internal sealed class WorldMarkerRenderer : IDisposable {
     private readonly IObjectTable _objectTable;
     private readonly WorldMarkerRegistry _registry;
     private readonly ITextureProvider _textureProvider;
+    private readonly WorldMarkerRaycaster? _raycaster;
     private readonly Dictionary<uint, IDalamudTextureWrap?> _iconCache = new();
 
     public WorldMarkerRenderer(
         IGameGui gameGui,
         IObjectTable objectTable,
         WorldMarkerRegistry registry,
-        ITextureProvider textureProvider) {
+        ITextureProvider textureProvider,
+        WorldMarkerRaycaster? raycaster = null) {
         _gameGui = gameGui;
         _objectTable = objectTable;
         _registry = registry;
         _textureProvider = textureProvider;
+        _raycaster = raycaster;
     }
 
     public void Draw(Configuration config) {
         try {
-            DrawInternal(null, config);
+            DrawInternal(config);
         } catch {
         }
     }
 
-    public void DrawWithDebug(List<WorldMarkerFactory> factories, Configuration config) {
-        try {
-            DrawInternal(factories, config);
-        } catch {
-        }
-    }
-
-    private void DrawInternal(List<WorldMarkerFactory>? factories, Configuration config) {
+    private void DrawInternal(Configuration config) {
         var localPlayer = _objectTable.LocalPlayer;
         var markers = _registry.Markers;
         var drawList = ImGui.GetForegroundDrawList();
 
-        var camFwd = GetCameraForward();
         Vector2 playerScreenPos = Vector2.Zero;
         bool hasPlayerScreen = false;
         if (localPlayer is not null && config.ShowCompass) {
-            hasPlayerScreen = _gameGui.WorldToScreen(localPlayer.Position, out playerScreenPos);
+            hasPlayerScreen = _gameGui.WorldToScreen(localPlayer.Position, out playerScreenPos, out _);
         }
 
         foreach (var marker in markers) {
-            var worldPos = marker.Position;
-            if (worldPos.Y == 0 && localPlayer is not null) {
-                worldPos = new Vector3(worldPos.X, localPlayer.Position.Y, worldPos.Z);
-            }
+            var worldPos = marker.GetWorldPosition(_raycaster);
 
             float distance = localPlayer is not null
                 ? Vector3.Distance(localPlayer.Position, worldPos)
@@ -63,16 +54,27 @@ internal sealed class WorldMarkerRenderer : IDisposable {
 
             if (marker.MaxVisibleDistance > 0 && distance > marker.MaxVisibleDistance) continue;
 
-            if (_gameGui.WorldToScreen(worldPos, out var screenPos)) {
+            bool onScreen = _gameGui.WorldToScreen(worldPos, out var screenPos, out bool inView);
+
+            if (!inView && marker.Position.Y == 0 && localPlayer is not null) {
+                var fallbackPos = marker.Position;
+                fallbackPos.Y = localPlayer.Position.Y + 1f;
+                if (_gameGui.WorldToScreen(fallbackPos, out screenPos, out inView) && inView) {
+                    worldPos = fallbackPos;
+                    onScreen = true;
+                }
+            }
+
+            if (onScreen && inView) {
                 if (!marker.IsVisible) continue;
                 float alpha = 1f;
-                if (marker.FadeFar > 0 && distance > marker.FadeNear) {
-                    alpha = Math.Clamp(1f - (distance - marker.FadeNear) / Math.Max(0.001f, marker.FadeFar - marker.FadeNear), 0f, 1f);
+                if (marker.FadeFar > 0 && marker.FadeFar > marker.FadeNear && distance > marker.FadeNear) {
+                    alpha = Math.Clamp(1f - (distance - marker.FadeNear) / (marker.FadeFar - marker.FadeNear), 0f, 1f);
                 }
                 marker.ShowDistance = config.ShowMarkerDistance;
                 DrawMarker(drawList, screenPos, marker, alpha, distance);
-            } else if (config.ShowCompass && marker.ShowOnCompass && hasPlayerScreen) {
-                DrawCompassMarker(drawList, screenPos, playerScreenPos, marker, worldPos, distance, camFwd, config);
+            } else if (config.ShowCompass && marker.ShowOnCompass && hasPlayerScreen && localPlayer is not null) {
+                DrawCompassMarker(drawList, playerScreenPos, marker, worldPos, localPlayer.Position, distance, config);
             }
         }
     }
@@ -153,33 +155,22 @@ internal sealed class WorldMarkerRenderer : IDisposable {
         }
     }
 
-    private unsafe (Vector3 Origin, Vector3 Direction) GetCameraForward() {
-        try {
-            var cameraManager = CameraManager.Instance();
-            if (cameraManager == null) return (Vector3.Zero, Vector3.UnitZ);
-            var camera = cameraManager->CurrentCamera;
-            if (camera == null) return (Vector3.Zero, Vector3.UnitZ);
-            Vector3 origin = camera->Position;
-            Vector3 lookAt = camera->LookAtVector;
-            var dir = lookAt - origin;
-            if (dir.LengthSquared() < 0.001f) return (origin, Vector3.UnitZ);
-            return (origin, Vector3.Normalize(dir));
-        } catch {
-            return (Vector3.Zero, Vector3.UnitZ);
-        }
-    }
-
     private void DrawCompassMarker(
-        ImDrawListPtr drawList, Vector2 markerScreenPos, Vector2 playerScreenPos,
-        WorldMarker marker, Vector3 worldPos, float distance,
-        (Vector3 Origin, Vector3 Direction) camFwd, Configuration config) {
-        var toMarker = worldPos - camFwd.Origin;
-        bool isInFront = Vector3.Dot(camFwd.Direction, toMarker) > 0;
+        ImDrawListPtr drawList, Vector2 playerScreenPos,
+        WorldMarker marker, Vector3 worldPos, Vector3 playerPos, float distance,
+        Configuration config) {
+        if (!_gameGui.WorldToScreen(worldPos, out Vector2 markerScreenPos, out _)) return;
 
-        var dir = markerScreenPos - playerScreenPos;
-        if (!isInFront) dir = -dir;
-        if (dir.LengthSquared() < 1f) return;
-        dir = Vector2.Normalize(dir);
+        var toMarker = worldPos - playerPos;
+        toMarker.Y = 0;
+        var camToMarker = markerScreenPos - playerScreenPos;
+        bool isInFront = Vector3.Dot(Vector3.Normalize(toMarker), new Vector3(camToMarker.X, 0, -camToMarker.Y)) > 0;
+
+        var dir = Vector2.Normalize(isInFront
+            ? markerScreenPos - playerScreenPos
+            : playerScreenPos - markerScreenPos);
+
+        if (dir.LengthSquared() < 0.01f) return;
 
         var vp = ImGui.GetMainViewport();
         var vpSize = vp.Size;
@@ -189,7 +180,7 @@ internal sealed class WorldMarkerRenderer : IDisposable {
         float clampSize = iconSize * 1.5f;
         var vpClamped = new Vector2(vpSize.X - clampSize, vpSize.Y - clampSize);
 
-        var compassPos = playerScreenPos + dir * config.CompassRadius;
+        var compassPos = new Vector2(vpSize.X / 2f, vpSize.Y / 2f) + dir * config.CompassRadius;
         compassPos.X = Math.Clamp(compassPos.X, clampSize, vpClamped.X);
         compassPos.Y = Math.Clamp(compassPos.Y, clampSize, vpClamped.Y);
 
@@ -239,24 +230,29 @@ internal sealed class WorldMarkerRenderer : IDisposable {
     }
 
     private bool TryDrawGameIcon(ImDrawListPtr drawList, uint iconId, Vector2 min, Vector2 max, float alpha) {
-        if (!_iconCache.TryGetValue(iconId, out var wrap) || wrap is null) {
+        if (_iconCache.TryGetValue(iconId, out var cached) && cached is not null) {
             try {
-                var lookup = new GameIconLookup { IconId = iconId, HiRes = true };
-                if (_textureProvider.TryGetFromGameIcon(lookup, out var texture) && texture is not null) {
-                    texture.TryGetWrap(out wrap, out _);
-                }
-                _iconCache[iconId] = wrap;
+                var _ = cached.Handle;
+                DrawIconInternal(drawList, cached, min, max, alpha);
+                return true;
             } catch {
-                _iconCache[iconId] = null;
-                return false;
+                _iconCache.Remove(iconId);
             }
         }
 
-        if (wrap is null) {
-            _iconCache.Remove(iconId);
+        try {
+            var lookup = new GameIconLookup { IconId = iconId, HiRes = true };
+            var wrap = _textureProvider.GetFromGameIcon(lookup).GetWrapOrDefault();
+            if (wrap is null) return false;
+            _iconCache[iconId] = wrap;
+            DrawIconInternal(drawList, wrap, min, max, alpha);
+            return true;
+        } catch {
             return false;
         }
+    }
 
+    private static void DrawIconInternal(ImDrawListPtr drawList, IDalamudTextureWrap wrap, Vector2 min, Vector2 max, float alpha) {
         var bounds = max - min;
         var sourceAspect = wrap.Size.X / Math.Max(1.0f, wrap.Size.Y);
         var boundsAspect = bounds.X / Math.Max(1.0f, bounds.Y);
@@ -276,7 +272,6 @@ internal sealed class WorldMarkerRenderer : IDisposable {
         }
 
         drawList.AddImage(wrap.Handle, min, max, uvMin, uvMax, ImGui.GetColorU32(new Vector4(1f, 1f, 1f, alpha)));
-        return true;
     }
 
     public void Dispose() {

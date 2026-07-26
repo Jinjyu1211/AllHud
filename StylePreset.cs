@@ -49,13 +49,36 @@ public class StylePreset {
         }
     }
 
-    // 内置预设主题，改编自 ImGui 社区分享（issue #707）
-    public static readonly StylePreset[] BuiltInPresets = [
-        CreateDeepBlue(),
-        CreatePureBlack(),
-        CreateSoftLight(),
-        CreateOfficialDark(),
+    private static StylePreset[]? _builtInPresetsCache;
+    public static StylePreset[] BuiltInPresets => _builtInPresetsCache ??= LoadAllBuiltInPresets();
+
+    private static readonly string[] EmbeddedStyleCodes = [
+        // 暗金香草主题
+        "DS1H4sIAAAAAAAACqVX25LaOBD9lZSeXZRky9e3zLCb2aoklcqQnV3eBGiMF2MTY5hcin9PyVLrZpgdMrxgyX1Oq49arfZPxFBBJjhAC1T8RP+gIhODf4f/U4CWqCChmFmhIhL/XJlhZYYn8SlAj6ggASrBeK04K5hgC4X4T8GpgkeDlw3Y1cps6y2GDmaNB5azrTcbDrO70TrF7FdUhMPKOlSQRDzswXWPCjJEeICZo+J8golviu675o4tDX6c9ciYmo6ciJdtLeZn/FuvYXlI4iRLIoXO4iwLo5gGaC6GaTT84gA9DOqeggE9rfZsUfPVeEkKZwMeqmbVPt2U2phEaRjTnCgMkT7ApXmrGW7XVb16DcGndnfYWQQ4A7EyBRIPD4Me9BSgm7Zb8c5EJzVKFIiGURzmNFTQMBo0zC1/En+/Zqv2abxB4FJ5FIA/O7bldoRY74MMEZM8wWmWQIzmvXaqOO7aI++srbnklhrI22VfHc0Zo2FKY5yDRhElJE0oKBXSdHBup0TV1/w1+6MIvHWMaWiWEpBdvBUyjGlu27pmu72lwdVMH3hzuGGdHZPeCh2HLf79smvreuFAnttwbf+uE2UKlJe7DKfJDOfucOxW0Pg7T2Oai7wBNj2cu8PzbH5SXEt2u+bLzQfWbTSFyF5ZZACWOd7rasVdPXT+64LkZLxBeItNUoUTD3N4MMfz0Pct1HU8SSEvxIMse8Q6JNLaF5eEuTgX4MgM5+7Qc/r7Rw1P0kSM81OA7jhz6lMOMuUgk6xGeBIRbe5HcL5m40mmEb6qICpoam8F37GO9e0riqamGC30t5m8AK4m+sz31Q/+rqvMxS5OII2I5pBbFAGHPKL0LIcfVzLkiM5VsRZC9N7Ll8lZJn9jriSaWUcshJtfPCgdXNNXZ/5sXEz8tMd5FGv/NMNZLtbvZf2MLb40j+3y4JR2WXh0adfDuTu0V6NZRsuChDiXH2aouabtclM15aeOHytubvo8wyKXIEfMcO4OfZ4/trv+u3WBwEJ0htotTd3276uG700WgAY6eiduDXD3c2hMZbiwAU67J2B31b5vy45Bg4wnUHBS52o7g7jkLDkDnImeUlYe++IFX+JhJMOAUe1W37WNwUUgh3gYx2UB31flun/uQIxwn51+9rl73pi/rXtPheF/rv4lIlEN9j2v+bLndtN7fVJ1rJx27W7GupJf8m1WK07YR3a8q8p17QqS+LeLOLjazUd2lB1+1ZQ++HKkqYecVlsrVigMUMOgFoSiNWtXrJa4l4Gi+CQ+49iWowL9zZqqrtmbKes2b778hQK0kh9FbJSirkAyWFM3U+8E2AVv+SKrl3098f+RUlo9GhVSrUOqlRBP2rYcRZpi2Fmbcz1K8OSM52pkBV5V22/Zwne48Cj6GvqM0puLCWtfrrVh9KXOE1tGU7rAKT1D15iqQySff06kHXz9m6BpJCV0xbHaBvFelhWsV+iI83W0LTGGymVzmg4r0w011ZyJ8xljLodMX7awPQO7sjwF6Cj6SXz6BVCG1wGbEQAA",
+        // 赛博卫月主题
+        "DS1H4sIAAAAAAAACq1YzXLbNhB+F541HoD4JW+x3caHOOOJ3XHNGy3REmNaVChKdpLRuS+Qh+j0xdrH6CyIBUBStuVMdMEutfthF/uDJb9HeZTSIzKJbqP0e/RnlGpgbsy6m0TTKOXwYBalBNbCShnmBlaxm0R3UUon0dw+XljE0vL5rSU+W2WDeBOlzGxxbx9UVuphYAg3UsuBbve0HjyNzdPVyEh4+iVKY2NXE6VUArGO0gTWNkopA2JjbJpEW4v4aNcni/XVAYvA+297t8tz+5j1vM2nVnBaVyBwVTy1VtAYd2PXzK7XZt1NjOBpuc5vq2I2NsMomNUpXJfLWf14PPfWSTRPWnEgroFI2G4SnSzKahbKozhKW2EAv6hXm1Uoq1FYo7RGbL6bRMd1MysaJx4nhCaSWh3HZT3OaAtOqZLCQVwu8ln9eJCNvzf5QxHYGCduP7eV28XLn9XbognPmOMhczxlbtUCrXfTttz66pCoJFFJopJUEM2yrULbSBzLmHPG0B/Dxz5SnjcgWhCptOIeamAAZ0lMhbJwjst6XAfFFRFaMw91UldVvloHZ/BTaOfFcnOcN70IvD3sl9OmrqrbHs5LUXfy7xtoPFaD4aZAZEi4WukpDROAoy4QncvP6g6iIFAViC53QtWTRTG9P8+be6egsUaByJDwe1XlrOh79mx6DjWGGYrRBKLLUBXoHW/atsamC/9BVGPsN57N+qwJAxNxwmnsUEYVRTmXCXeGOzbrs125ADITwqENE11zKmON3lBClBIJ+uRZ24sESTSBsjkr8rAjCWwOQHR2YHNg1ImPPNnbf8mRdhrDU8cDxJMLQ1Ws8iZva28Ux3YARG8DEcoPrWISihAdIkpzRplCGwPeQCkdayI4DxEHVr8NMDjkT8W6/Fa8b0p/JSuEASJDwijGoqcydEvhHQNEp6nDnuo1f5X5V0GdxRgLILqOxTDaspMdZYdmihIXREaY4kRhnnu2C0NnZIc0zHGVSKYS9J8KzVnsCsazY6A+lnf1dBO2ciIdDKFJkgBqB8M1IYSgU4mK+QBjYNXPdPPTenpfLucXTbEti8dfAfXbw6r9Gt4xCILqQYVdVHX7oVwWa1+PuKfbzu40UOiHFie1oDCZGKidleu2njc5jrPkCLoadZeJjhOhnZGUqDjRLgXBY6KHSOOCoElCsAfROGaEAkbWZ22VmyS3Ia2KrjsF50axPoAYnZzRsRNY29TL+Us3q9iv+KGcL9qX6mmk96k/v75w63vxd9Vr8zTUgB2oL4uqmLZFOPXGcngRQIXYew3Srsnnp029usqbefHcVt44qMOP+fasnC+qvv/P7dP5/zHfdgN8uZwPlZ93TA00T8uHwDUsfKx49Atu6vN6lled3mFKTOzgtSx/KKI0+u+vf/798Xc0iWbdWw2++0CaK+6mIGSykLHzLIekB/t9y9WxZFK6AcezWZ8dIkwPeqHydSQZ49zVkeOyHuf0ioPQ77wX7t4yVGe7vbk62fmorSiCSRFiLnzlS821VphCns36rFMtR1Xk2j4zv0D28+v1I5RWSkMzuX+2AsIptPKW46CGE1oiw8MNuiV22D1wfi6lVO0tPNr7POC95izZEyw/nUj4v2tLxFnYO50vo2AJgikdYvopTruhnjtMKcIE8PeRdpc8xsegO0nfP3B3ucefzeg25C6fg1fX7RuSwt/V2Ldlv90TA/l0YCr7Lykwd3V4aCJOIICH31Y83r44u28tJq2622gPmJvmXrMOPtIcYB4cIbxCkN3/5VO/Z0cTAAA=",
+        // 默认卫月主题
+        "DS1H4sIAAAAAAAACqVYy27bRhT9FYOrFhCEeT+0i+02XsSxEbtI6x1N0RJrSlQoSnYS6AP6df2lYt4zpJRGsjfU0Peeuc8zd/g9y7MJHINR9phNvmd/ZhMI1OqvbCLGYDfKimxC1YupFSutGBhTLQXGdDfKnrIJHGUzKzu3spVd54/2xd9WmdktsN7i2YrVVmrhtzBSREst7Vti3zL9tum9NbKrHgLQb79on0ZZm02gll/bjbtsApH6sckm+rm1/3ixz1dr2de9zn/bu1ue29c4cTYvrGDR1ErgvnztvL4AWCLILIpQC8pH2YNaScoEQ5yOss/amt1I615W6/yxLqceg1EgBSAWg3FBMCQWQy8wJxHG52o5bV7OZ8EHSSDkzDkYlhoBEg0fW3Exr+rpaQAmUrfNarN6iwXnTTstW6/PARUCuQhwL2/CKBlQYbD7UwAlA8KD3M3zafNyEpSy5Pc2X5SRK1BlkAluAaDX0ACI6T8RuWIBrppt2UZJRcYQFxKUZBVTJAlEQ5R3RVdtQ8Nib74Gwb6gNApx1RbKq+rqxBnIGeHAlWdYmrz44u0D9MwAxmsXk7A0MNpRTMkQ56Kp63y1jsJyPNR1udyc5+1bUnRXtE1dPyYgvvGtGohqwsu/bxURuowmbYoY4oRCl1AiVVnGGU1A+tWhmxpRl1iTZlcddFAdCVYvOZAjSiRALho+qQ+JmVHzl8Xzdd4+h5bRZQF9y8S9KzV6bEpdTcs0MCfq9/w4CuV803WNO1/AGMFEGSmfgRQuOSq4WOKBfj8rOGVzbQJxtUlV61A5ZCEN1XOGUAakxB5JAgEgQhaKcSQFjSv0qsxjPoQUYia4r3C9dO4gRS0Y8oH6gIKOjYqB6XMQ4ohB7CiIMMilWhoKIpRIzmKQu3KVt3nXBG8CbRmIhISIJ+whQt+h4wrNofT8kYBwQhyIoFAQ6hIjOaQsNuVTua6+le/banUqDQSEQbVRSDhRZWDCwrCQRDhTbGD3Q/VcophzhB0QJUJgT6kMA4xhOoTEpHZsjdwPyQxJIQWivkQgFxz5mBKIMEIorvb7QfNjzrCEHoIAwgVWh6dpPQIBQ6Jnxh/Lp6bYxIfLKc54lH5MCYIC+zxzCDj3eZaIU8yUfR7qsimeq+Xsti23VRnGEeQoQDGH0TWRAGMetH5brLqv0eHkyNzFMK6C27rpPlTLch3mR+ew+mGSDvcppHnT47GJtutmTHtqV9W6a2ZtHuZ7ngwUSfHLiCD3QPSrRhCGiR8EuGoGpkjNYjEoFH3GqapLQ1BvGTw1jB0cu7ZZzo71LKb+COxDNZt3JzCemv71yEMd3qd0tv/BmBLE39VdL6v6+WCfRoPZ+8ddWZdFV8YXgB9UKVaGXbb57LJtVvd5OysPbRWMk7tR9jHfXlWzeZ3E5eA+Jjkf86253FTLWV/5sGO8p3lZLSLXHCs6FnB+ITVaNtO8Nno/p4TpTt1r80WZTbKLvFutNkVRLc+um2Ken/1y8+8/N2c3bTWrlmeL6vXXbJRNzZ3R3SzVpdAOd5ardYV6sra1EMUkULUuQiEO3BPNEByfXUXgsrS0kwHRn6leL7SorXRnqzIcupAwc4eJN4xmOT2hSxfFtJfCDcyoPQU1PderA9hygg2VyYHz1yuGfHlQ42DSvESzvpq9vOI8YvmYPtKQ7rm+Vwfu7EJN4FD6UdFc2mNN9x0FjCXWfz6NLp79Of35kIYwd4egqDMRR7Q+ja4Xpx+ky5MD05yai9VpTn45tWjaA4q9MdS1jNcL53RwwsbG3XVNfQ9u893gFGAJ9RmpzWBqIM4Yc36CMdnpD2RODElMkZ+iIRcEqeIyuYWAM54cmWGY8bFK5wWgN3gdzBUcOJaP7Q1f5HwkfPTchxmF577RBbz0mDFo/psdGLtRwk8zEZifeP/POvWx7yfMUwFV9zWw+w9KzaUojxUAAA==",
     ];
+
+    private static readonly string[] EmbeddedStyleNames = ["暗金香草 (Vanilla Saffron)", "赛博卫月 (Cyber Moon)", "默认卫月 (Default Moon)"];
+
+    private static StylePreset[] LoadAllBuiltInPresets() {
+        var list = new List<StylePreset> {
+            CreateDeepBlue(),
+            CreatePureBlack(),
+            CreateSoftLight(),
+            CreateOfficialDark(),
+        };
+        for (var i = 0; i < EmbeddedStyleCodes.Length; i++) {
+            var preset = Decode(EmbeddedStyleCodes[i]);
+            if (preset != null && preset.Colors.Count > 0) {
+                preset.Name = EmbeddedStyleNames[i];
+                list.Add(preset);
+            }
+        }
+        return list.ToArray();
+    }
 
     // 深蓝 — 改编自 codz01 主题
     static StylePreset CreateDeepBlue() => new() {

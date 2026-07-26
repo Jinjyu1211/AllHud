@@ -1,0 +1,7 @@
+﻿gh : function not defined: blob/0
+At line:16 char:1
++ gh api "/repos/una-xiv/umbra/git/trees/main?recursive=1" --jq '.tree[ ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (function not defined: blob/0:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 

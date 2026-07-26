@@ -179,8 +179,8 @@ public sealed partial class OverlayRenderer {
     private readonly Dictionary<string, ISharedImmediateTexture> pluginIconTextureCache = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, DateTime> pluginIconTextureRetryAt = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, string> remotePluginIconCachePathCache = new(StringComparer.OrdinalIgnoreCase);
-    private readonly Dictionary<string, DateTime> missingCachedRemotePluginIconRetryAt = new(StringComparer.OrdinalIgnoreCase);
-    private readonly Dictionary<string, DateTime> remotePluginIconRetryAt = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, DateTime> missingCachedRemotePluginIconRetryAt = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, DateTime> remotePluginIconRetryAt = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<uint, IDalamudTextureWrap?> frameGameIconWrapCache = [];
     private readonly Dictionary<GameIconCacheKey, ISharedImmediateTexture> gameIconTextureCache = [];
     private readonly Dictionary<uint, DateTime> missingGameIconRetryAt = [];

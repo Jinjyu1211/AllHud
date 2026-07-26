@@ -9,7 +9,8 @@ internal static class MapCoordinateConverter {
             return (worldX, worldZ);
         }
 
-        var scale = (uint)agentMap->CurrentMapSizeFactor;
+        var scale = agentMap->CurrentMapSizeFactor;
+        if (scale == 0) return (worldX, worldZ);
         var offsetX = -agentMap->CurrentOffsetX;
         var offsetY = -agentMap->CurrentOffsetY;
 
@@ -25,7 +26,8 @@ internal static class MapCoordinateConverter {
             return (mapX, mapY);
         }
 
-        var scale = (uint)agentMap->CurrentMapSizeFactor;
+        var scale = agentMap->SelectedMapSizeFactorFloat;
+        if (scale <= 0f) scale = 1f;
         var offsetX = -agentMap->CurrentOffsetX;
         var offsetY = -agentMap->CurrentOffsetY;
 

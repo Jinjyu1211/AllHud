@@ -18,7 +18,8 @@ public sealed class WorldMarkerSystem : IDisposable {
         ITextureProvider textureProvider) {
         _config = config;
         _registry = new WorldMarkerRegistry();
-        _renderer = new WorldMarkerRenderer(gameGui, objectTable, _registry, textureProvider);
+        var raycaster = new WorldMarkerRaycaster(objectTable);
+        _renderer = new WorldMarkerRenderer(gameGui, objectTable, _registry, textureProvider, raycaster);
 
         RegisterFactory(new GatheringNodeMarkerFactory(config, dataManager, objectTable));
         RegisterFactory(new FlagMarkerFactory(config));
@@ -47,7 +48,7 @@ public sealed class WorldMarkerSystem : IDisposable {
 
     public void Draw() {
         if (!_config.ShowWorldMarkers) return;
-        _renderer.DrawWithDebug(_factories, _config);
+        _renderer.Draw(_config);
         _renderer.DrawPlayerPosition(_config);
     }
 

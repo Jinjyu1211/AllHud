@@ -467,7 +467,7 @@ public sealed partial class OverlayRenderer {
             var remoteCachePath = GetRemotePluginIconCachePath(plugin.Manifest.IconUrl);
             this.pluginIconTextureCache.Remove(remoteCachePath);
             this.pluginIconTextureRetryAt.Remove(remoteCachePath);
-            this.remotePluginIconRetryAt.Remove(plugin.Manifest.IconUrl);
+            this.remotePluginIconRetryAt.TryRemove(plugin.Manifest.IconUrl, out _);
         }
 
         var localIconPath = GetLocalPluginIconPath(plugin);
@@ -558,7 +558,7 @@ public sealed partial class OverlayRenderer {
             return false;
         }
 
-        this.missingCachedRemotePluginIconRetryAt.Remove(iconUrl);
+        this.missingCachedRemotePluginIconRetryAt.TryRemove(iconUrl, out _);
 
         try {
             if (!this.pluginIconTextureCache.TryGetValue(cachePath, out var sharedTexture)) {
@@ -568,7 +568,7 @@ public sealed partial class OverlayRenderer {
 
             if (sharedTexture.TryGetWrap(out texture, out _) && texture is not null) {
                 this.pluginRemoteIconCache[iconUrl] = texture;
-                this.remotePluginIconRetryAt.Remove(iconUrl);
+                this.remotePluginIconRetryAt.TryRemove(iconUrl, out _);
                 return true;
             }
         } catch {
@@ -585,7 +585,7 @@ public sealed partial class OverlayRenderer {
             TryWriteRemotePluginIconCache(iconUrl, bytes);
             var texture = await this.textureProvider.CreateFromImageAsync(bytes, $"AllHud plugin icon {iconUrl}").ConfigureAwait(false);
             this.pluginRemoteIconCache[iconUrl] = texture;
-            this.remotePluginIconRetryAt.Remove(iconUrl);
+            this.remotePluginIconRetryAt.TryRemove(iconUrl, out _);
             return texture;
         } catch {
             this.remotePluginIconRetryAt[iconUrl] = DateTime.UtcNow + RemotePluginIconRetryDelay;
@@ -599,7 +599,7 @@ public sealed partial class OverlayRenderer {
         try {
             Directory.CreateDirectory(this.pluginIconCacheDirectory);
             File.WriteAllBytes(GetRemotePluginIconCachePath(iconUrl), bytes);
-            this.missingCachedRemotePluginIconRetryAt.Remove(iconUrl);
+            this.missingCachedRemotePluginIconRetryAt.TryRemove(iconUrl, out _);
         } catch {
         }
     }

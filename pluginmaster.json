@@ -1,6 +1,6 @@
-﻿[
+[
   {
-    "Author": "Jinjyu1211",
+    "Author": "Jinjyu1211 (Original: QiongHHHZZZ)",
     "Name": "AllHud",
     "InternalName": "AllHud",
     "Version": "0.0.0.16",
@@ -21,7 +21,7 @@
     "AcceptsFeedback": true,
     "IsHide": false,
     "IsTestingExclusive": false,
-    "LastUpdated": 1785079507,
+    "LastUpdated": 1785117007,
     "Changelog": "Fixed map coordinate error."
   }
 ]

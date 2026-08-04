@@ -124,8 +124,10 @@ public sealed partial class OverlayRenderer {
             }
 
             var entityId = nativeData.EntityId;
-            if (!groupsByEntityId.TryGetValue(entityId, out var group)
-                && !groupsByObjectId.TryGetValue(entityId, out group)) {
+            var hasGroup = groupsByEntityId.TryGetValue(entityId, out var group)
+                || groupsByObjectId.TryGetValue(entityId, out group);
+
+            if (!hasGroup || group is null) {
                 continue;
             }
 

@@ -339,10 +339,11 @@ public sealed unsafe partial class CombatStateTracker : IDisposable {
         IReadOnlyList<TrackedStatusDefinition> definitions,
         IReadOnlyList<CooldownEntry> observedEntries,
         HashSet<string> enabledKeys) {
+
         var cooldowns = definitions
             .Where(definition => IsSourceClassJobAllowed(definition, member.ClassJobId))
             .Where(definition => definition.SourceClassJobIds.Count > 0)
-            .Where(definition => IsDefinitionSelected(definition, member.ClassJobId, enabledKeys))
+            .Where(definition => definition.Group == CooldownGroup.RaidBuff || IsDefinitionSelected(definition, member.ClassJobId, enabledKeys))
             .Select(definition => FindObservedCooldown(member, definition, observedEntries)
                                   ?? CreateReadyCooldown(member, definition))
             .GroupBy(entry => (entry.Group, entry.StatusId, entry.ActionId))

@@ -3,16 +3,16 @@
     "Author": "Jinjyu1211 (Original: QiongHHHZZZ)",
     "Name": "AllHud",
     "InternalName": "AllHud",
-    "Version": "0.0.0.17",
-    "AssemblyVersion": "0.0.0.17",
-    "Description": "Mod from original plugin, customized version.",
+    "Version": "0.0.0.18",
+    "AssemblyVersion": "0.0.0.18",
+    "Description": "Customized HUD plugin.",
     "ApplicableVersion": "any",
     "Tags": ["hud", "overlay", "ui", "info", "party", "combat"],
     "CategoryTags": ["ui"],
     "DalamudApiLevel": 15,
-    "DownloadLinkInstall": "https://gh-proxy.com/https://github.com/Jinjyu1211/AllHud/releases/download/v0.0.0.17/AllHud-0.0.0.17.zip",
-    "DownloadLinkUpdate": "https://gh-proxy.com/https://github.com/Jinjyu1211/AllHud/releases/download/v0.0.0.17/AllHud-0.0.0.17.zip",
-    "DownloadLinkTesting": "https://gh-proxy.com/https://github.com/Jinjyu1211/AllHud/releases/download/v0.0.0.17/AllHud-0.0.0.17.zip",
+    "DownloadLinkInstall": "https://gh-proxy.com/https://github.com/Jinjyu1211/AllHud/releases/download/v0.0.0.18/AllHud-0.0.0.18.zip",
+    "DownloadLinkUpdate": "https://gh-proxy.com/https://github.com/Jinjyu1211/AllHud/releases/download/v0.0.0.18/AllHud-0.0.0.18.zip",
+    "DownloadLinkTesting": "https://gh-proxy.com/https://github.com/Jinjyu1211/AllHud/releases/download/v0.0.0.18/AllHud-0.0.0.18.zip",
     "LoadRequiredState": 0,
     "LoadSync": false,
     "CanUnloadAsync": false,
@@ -21,7 +21,6 @@
     "AcceptsFeedback": true,
     "IsHide": false,
     "IsTestingExclusive": false,
-    "LastUpdated": 1785822000,
-    "Changelog": "1.Refactored buff detection and display, showing stack count and tooltip unaffected by mouse passthrough. 2.Overhauled independent cooldown monitor to use entityId/objectId matching attached to native party list."
+    "LastUpdated": 1785841872
   }
 ]

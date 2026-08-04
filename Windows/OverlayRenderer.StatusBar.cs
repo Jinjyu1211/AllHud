@@ -33,6 +33,7 @@ using LuminaClassJob = Lumina.Excel.Sheets.ClassJob;
 using LuminaMainCommand = Lumina.Excel.Sheets.MainCommand;
 using LuminaMainCommandCategory = Lumina.Excel.Sheets.MainCommandCategory;
 using LuminaTerritoryType = Lumina.Excel.Sheets.TerritoryType;
+using LuminaStatus = Lumina.Excel.Sheets.Status;
 
 namespace AllHud.Windows;
 
@@ -662,15 +663,58 @@ public sealed partial class OverlayRenderer {
             DrawStatusTimerText(FormatCooldownIconTime(status.RemainingSeconds), min, max, timerColor, size);
         }
 
-        if (ImGui.IsItemHovered()) {
+        if (status.StackCount > 1) {
+            DrawStatusStackCount(status.StackCount, min, max, size);
+        }
+
+        if (IsMouseOverRect(min, max)) {
             DrawStatusTooltip(status, this.config.ShowRawStatusIds);
         }
+    }
+
+    private static bool IsMouseOverRect(Vector2 min, Vector2 max) {
+        var mousePos = ImGui.GetIO().MousePos;
+        return mousePos.X >= min.X && mousePos.X <= max.X
+            && mousePos.Y >= min.Y && mousePos.Y <= max.Y;
+    }
+
+    private void DrawStatusStackCount(byte stackCount, Vector2 min, Vector2 max, float iconSize) {
+        var drawList = ImGui.GetWindowDrawList();
+        var text = stackCount.ToString();
+        var baseFontSize = ImGui.GetFontSize();
+        var fontSize = MathF.Round(Math.Clamp(iconSize * 0.45f, baseFontSize * 0.78f, baseFontSize * 1.08f));
+        using var font = PushHudFont(fontSize);
+        var textSize = ImGui.CalcTextSize(text);
+        var padX = MathF.Round(3.0f * iconSize / 28.0f);
+        var padY = MathF.Round(2.0f * iconSize / 28.0f);
+        var textPos = new Vector2(
+            MathF.Round(max.X - textSize.X - padX),
+            MathF.Round(max.Y - textSize.Y - padY));
+        var bgMin = textPos - new Vector2(1.0f, 0.0f);
+        var bgMax = textPos + textSize + new Vector2(1.0f, 1.0f);
+        var bgColor = ImGui.GetColorU32(new Vector4(0.0f, 0.0f, 0.0f, 0.70f));
+        drawList.AddRectFilled(bgMin, bgMax, bgColor, 2.0f);
+        drawList.AddText(textPos, ImGui.GetColorU32(new Vector4(1.0f, 1.0f, 1.0f, 1.0f)), text);
     }
 
     private void DrawStatusTooltip(StatusEntry status, bool showRawStatusId) {
         DrawStyledTooltip(() => {
             ImGui.TextUnformatted(GetStatusTooltipTitle(status));
             ImGui.Separator();
+
+            var statusSheet = this.dataManager.GetExcelSheet<LuminaStatus>();
+            if (statusSheet is not null && statusSheet.TryGetRow(status.StatusId, out var statusRow)) {
+                var description = statusRow.Description.ExtractText();
+                if (!string.IsNullOrWhiteSpace(description)) {
+                    ImGui.TextWrapped(description);
+                    ImGui.Separator();
+                }
+            }
+
+            if (status.StackCount > 1) {
+                ImGui.TextUnformatted($"层数：{status.StackCount}");
+            }
+
             ImGui.TextUnformatted($"来源：{FormatSourceLabel(status.SourceName, status.SourceJobName, this.config.ShowSourceJobNames)}");
             if (showRawStatusId) {
                 ImGui.TextUnformatted($"状态ID：{status.StatusId}");

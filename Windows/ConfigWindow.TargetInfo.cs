@@ -17,6 +17,8 @@ public sealed partial class ConfigWindow {
             DrawCheckbox("启动目标情报", nameof(this.config.ShowCustomTargetInfo), this.config.ShowCustomTargetInfo, value => this.config.ShowCustomTargetInfo = value);
             ImGui.SameLine(0.0f, 10.0f);
             DrawCheckbox("锁定窗口", nameof(this.config.TargetInfoLocked), this.config.TargetInfoLocked, value => this.config.TargetInfoLocked = value);
+            ImGui.SameLine(0.0f, 10.0f);
+            DrawCheckbox("鼠标穿透", nameof(this.config.TargetInfoMousePassthrough), this.config.TargetInfoMousePassthrough, value => this.config.TargetInfoMousePassthrough = value);
 
             DrawTargetInfoSubsection("生命值");
             DrawHudScaleCombo("整体缩放", this.config.CustomTargetInfoScale, value => this.config.CustomTargetInfoScale = value);

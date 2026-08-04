@@ -46,6 +46,16 @@ public sealed partial class ConfigWindow {
             this.saveConfig();
         });
 
+        DrawCheckbox("自定义地图标记", nameof(this.config.ShowCustomMapMarkers), this.config.ShowCustomMapMarkers, value => {
+            this.config.ShowCustomMapMarkers = value;
+            this.saveConfig();
+        });
+
+        DrawCheckbox("宝箱标记", nameof(this.config.ShowTreasureMarkers), this.config.ShowTreasureMarkers, value => {
+            this.config.ShowTreasureMarkers = value;
+            this.saveConfig();
+        });
+
         ImGui.Spacing();
         DrawTargetInfoSubsection("距离与指南针");
 

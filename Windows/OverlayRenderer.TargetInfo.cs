@@ -46,6 +46,10 @@ public sealed partial class OverlayRenderer {
             flags |= ImGuiWindowFlags.NoMove;
         }
 
+        if (this.config.TargetInfoMousePassthrough) {
+            flags |= ImGuiWindowFlags.NoInputs | ImGuiWindowFlags.NoMouseInputs;
+        }
+
         if (IsNativeContextMenuVisible()) {
             flags |= ImGuiWindowFlags.NoInputs;
         }

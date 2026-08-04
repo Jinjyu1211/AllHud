@@ -59,73 +59,151 @@ public sealed partial class OverlayRenderer {
             return;
         }
 
-        var groups = this.config.ShowSelfCooldownBarPreview
-            ? this.combatState.GetPartyCooldownTrackingPreview(this.config)
-            : this.combatState.GetPartyCooldownTracking(this.config);
+        if (this.config.ShowSelfCooldownBarPreview) {
+            DrawSelfCooldownBarPreviewWindow(flags);
+            return;
+        }
+
+        DrawNativeAttachedSelfCooldown();
+    }
+
+    private unsafe void DrawNativeAttachedSelfCooldown() {
+        var groups = this.combatState.GetPartyCooldownTracking(this.config);
         if (groups.Count == 0) {
             return;
         }
 
-        if (this.config.SelfCooldownBarLocked) {
-            flags |= ImGuiWindowFlags.NoMove;
+        var addonPtr = this.gameGui.GetAddonByName("_PartyList");
+        if (addonPtr.IsNull) {
+            return;
         }
 
-        var scale = Math.Clamp(this.config.SelfCooldownBarScale, 0.6f, 2.0f);
-        var opacity = Math.Clamp(this.config.SelfCooldownBarOpacity, 0.15f, 1.0f);
-        var iconSize = Math.Clamp(36.0f * scale, 12.0f, 64.0f);
-        var spacing = MathF.Round(5.0f * scale);
-        var rowGap = MathF.Round(5.0f * scale);
-        var headerGap = MathF.Round(7.0f * scale);
-        var pad = MathF.Round(7.0f * scale);
-        var horizontalLayout = Math.Clamp(this.config.SelfCooldownBarLayoutDirection, 0, 1) == 1;
-        var layoutCache = GetSelfCooldownLayoutCache(groups, horizontalLayout, iconSize, spacing, rowGap, pad);
-        var visibleGroups = layoutCache.VisibleGroups;
-        var horizontalRows = layoutCache.HorizontalRows;
+        var addon = (AddonPartyList*)addonPtr.Address;
+        if (!IsNativePartyListVisible(addon)) {
+            return;
+        }
+
+        var memberCount = Math.Clamp(addon->MemberCount, 0, 8);
+        if (memberCount <= 0) {
+            return;
+        }
+
+        var partyArray = PartyListNumberArray.Instance();
+        if (partyArray is null) {
+            return;
+        }
+
+        const float iconSize = 36.0f;
+        const float iconGap = 5.0f;
+        const float attachGap = 16.0f;
+
+        var anchorSnapshot = GetNativePartyAnchorSnapshot(addon, memberCount, iconSize);
+        var anchors = anchorSnapshot.Anchors;
+        var fallbackJobIconLeft = anchorSnapshot.FallbackJobIconLeft;
+        var fallbackJobIconHeight = anchorSnapshot.FallbackJobIconHeight;
+
+        // 仅使用 entityId / objectId 匹配，partySlot 因 GetPartyMembers 过滤无CD成员导致索引不对应原生列表，不可靠
+        var groupsByEntityId = new Dictionary<uint, PartyCooldownGroupEntry>();
+        var groupsByObjectId = new Dictionary<ulong, PartyCooldownGroupEntry>();
+        foreach (var group in groups) {
+            if (group.SourceEntityId != 0) {
+                groupsByEntityId.TryAdd(group.SourceEntityId, group);
+            }
+
+            if (group.SourceObjectId != 0) {
+                groupsByObjectId.TryAdd(group.SourceObjectId, group);
+            }
+        }
+
+        var drawList = ImGui.GetBackgroundDrawList();
+
+        for (var nativeIndex = 0; nativeIndex < memberCount; nativeIndex++) {
+            ref var nativeData = ref partyArray->PartyMembers[nativeIndex];
+            if (nativeData.MaxHealth <= 0) {
+                continue;
+            }
+
+            var entityId = nativeData.EntityId;
+            if (!groupsByEntityId.TryGetValue(entityId, out var group)
+                && !groupsByObjectId.TryGetValue(entityId, out group)) {
+                continue;
+            }
+
+            if (anchors[nativeIndex] is not { } anchor) {
+                continue;
+            }
+
+            var cooldowns = this.config.SelfCooldownBarHideWhenReady
+                ? group.Cooldowns.Where(cd => !cd.IsReady).ToList()
+                : group.Cooldowns;
+            if (cooldowns.Count == 0) {
+                continue;
+            }
+
+            var rowMin = anchor.RowMin;
+            var rowH = anchor.RowH;
+            if (!anchor.HasJobIconAnchor && fallbackJobIconLeft is { } jobIconLeft) {
+                var rowCenterY = rowMin.Y + rowH * 0.5f;
+                rowMin = new Vector2(jobIconLeft, rowCenterY - fallbackJobIconHeight * 0.5f);
+                rowH = fallbackJobIconHeight;
+            }
+
+            var iconGroupW = cooldowns.Count * iconSize + Math.Max(0, cooldowns.Count - 1) * iconGap;
+            var x = rowMin.X - attachGap - iconGroupW;
+            var y = rowMin.Y + (rowH - iconSize) * 0.5f;
+            for (var i = 0; i < cooldowns.Count; i++) {
+                DrawNativeAttachedCooldownIcon(drawList, new Vector2(x + i * (iconSize + iconGap), y), cooldowns[i], iconSize);
+            }
+        }
+    }
+
+    private void DrawSelfCooldownBarPreviewWindow(ImGuiWindowFlags flags) {
+        var groups = this.combatState.GetPartyCooldownTrackingPreview(this.config);
+        if (groups.Count == 0) {
+            return;
+        }
+
+        var horizontalLayout = this.config.SelfCooldownBarLayoutDirection == 1;
+        const float iconSize = 36.0f;
+        var iconGap = MathF.Round(5.0f * this.config.SelfCooldownBarScale);
+        var rowGap = MathF.Round(5.0f * this.config.SelfCooldownBarScale);
+        var pad = MathF.Round(8.0f * this.config.SelfCooldownBarScale);
+        var rowHeight = MathF.Round(46.0f * this.config.SelfCooldownBarScale);
+        var scale = this.config.SelfCooldownBarScale;
+
+        var layout = GetSelfCooldownLayoutCache(groups, horizontalLayout, iconSize, iconGap, rowGap, pad);
+        var visibleGroups = layout.VisibleGroups;
         if (visibleGroups.Count == 0) {
             return;
         }
 
-        var contentWidth = horizontalLayout
-            ? horizontalRows.Count > 0 ? horizontalRows.Max(row => row.Width) : 0.0f
-            : visibleGroups.Max(entry => iconSize + headerGap + entry.Cooldowns.Count * iconSize + Math.Max(0, entry.Cooldowns.Count - 1) * spacing);
-        var contentHeight = horizontalLayout
-            ? horizontalRows.Count * (iconSize * 2.0f + headerGap) + Math.Max(0, horizontalRows.Count - 1) * rowGap
-            : visibleGroups.Count * iconSize + Math.Max(0, visibleGroups.Count - 1) * rowGap;
-        var windowSize = SnapToPixel(new Vector2(contentWidth + pad * 2.0f, contentHeight + pad * 2.0f));
-        var windowPosition = GetClampedStatusOverlayPosition(this.config.SelfCooldownBarPosition, windowSize);
-        var shouldClampWindow = windowPosition != this.config.SelfCooldownBarPosition;
+        var windowWidth = horizontalLayout
+            ? Math.Min(ImGui.GetMainViewport().WorkSize.X - pad * 2.0f, layout.HorizontalRows.Max(row => row.Width) + pad * 2.0f + 32.0f)
+            : ImGui.GetMainViewport().WorkSize.X * 0.26f;
+        var rowCount = horizontalLayout ? layout.HorizontalRows.Count : visibleGroups.Count;
+        var windowHeight = pad + rowCount * rowHeight + Math.Max(0, rowCount - 1) * rowGap + pad;
 
-        ImGui.SetNextWindowPos(windowPosition, shouldClampWindow ? ImGuiCond.Always : ImGuiCond.FirstUseEver);
-        ImGui.SetNextWindowSize(windowSize);
-
-        flags |= ImGuiWindowFlags.NoBackground | ImGuiWindowFlags.NoDecoration;
-        ImGui.PushStyleVar(ImGuiStyleVar.Alpha, opacity);
-        if (!ImGui.Begin("AllHud 队伍冷却", flags)) {
-            ImGui.End();
-            ImGui.PopStyleVar();
-            return;
+        ImGui.SetNextWindowSize(new Vector2(windowWidth, windowHeight));
+        if (this.config.SelfCooldownBarLocked) {
+            ImGui.SetNextWindowPos(this.config.SelfCooldownBarPosition);
         }
 
-        var currentPosition = ImGui.GetWindowPos();
-        var clampedCurrentPosition = GetClampedStatusOverlayPosition(currentPosition, windowSize);
-        if (clampedCurrentPosition != currentPosition) {
-            ImGui.SetWindowPos(clampedCurrentPosition, ImGuiCond.Always);
+        if (!ImGui.Begin("###AllHudSelfCooldownBar", flags)) {
+            ImGui.End();
+            return;
         }
 
         TrackSelfCooldownBarPosition();
 
         var drawList = ImGui.GetWindowDrawList();
-        var windowMin = ImGui.GetWindowPos();
-        DrawSelfCooldownBarCard(drawList, windowMin, windowMin + windowSize, scale, opacity);
 
         if (horizontalLayout) {
-            DrawSelfCooldownBarHorizontalLayout(drawList, horizontalRows, pad, iconSize, spacing, rowGap, headerGap);
+            DrawSelfCooldownBarHorizontalLayout(drawList, layout.HorizontalRows, pad, scale, rowHeight, iconSize, iconGap);
         } else {
-            DrawSelfCooldownBarVerticalLayout(drawList, visibleGroups, pad, iconSize, spacing, rowGap, headerGap);
+            DrawSelfCooldownBarVerticalLayout(drawList, visibleGroups, pad, scale, rowHeight, iconSize, iconGap);
         }
 
         ImGui.End();
-        ImGui.PopStyleVar();
     }
 
     private readonly record struct SelfCooldownHorizontalRow(IReadOnlyList<SelfCooldownVisibleGroup> Groups, float Width);
@@ -179,8 +257,11 @@ public sealed partial class OverlayRenderer {
         return this.cachedSelfCooldownLayout;
     }
 
-    private static float GetSelfCooldownHorizontalGroupWidth(SelfCooldownVisibleGroup group, float iconSize, float spacing) {
-        return Math.Max(iconSize, group.Cooldowns.Count * iconSize + Math.Max(0, group.Cooldowns.Count - 1) * spacing);
+    private static float GetSelfCooldownHorizontalGroupWidth(SelfCooldownVisibleGroup group, float iconSize, float iconGap) {
+        var nameWidth = ImGui.CalcTextSize(group.Entry.SourceName).X;
+        var jobNameWidth = ImGui.CalcTextSize(group.Entry.SourceJobName).X;
+        return 48.0f + Math.Max(nameWidth, jobNameWidth) + 8.0f
+               + group.Cooldowns.Count * iconSize + Math.Max(0, group.Cooldowns.Count - 1) * iconGap;
     }
 
     private static IReadOnlyList<SelfCooldownHorizontalRow> BuildSelfCooldownHorizontalRows(IReadOnlyList<SelfCooldownVisibleGroup> visibleGroups, float iconSize, float spacing, float groupGap, float pad) {
@@ -211,41 +292,81 @@ public sealed partial class OverlayRenderer {
         return rows;
     }
 
-    private void DrawSelfCooldownBarVerticalLayout(ImDrawListPtr drawList, IReadOnlyList<SelfCooldownVisibleGroup> visibleGroups, float pad, float iconSize, float spacing, float rowGap, float headerGap) {
+    private void DrawSelfCooldownBarVerticalLayout(ImDrawListPtr drawList, IReadOnlyList<SelfCooldownVisibleGroup> visibleGroups, float pad, float scale, float rowHeight, float iconSize, float iconGap) {
         for (var rowIndex = 0; rowIndex < visibleGroups.Count; rowIndex++) {
             var group = visibleGroups[rowIndex];
-            var rowY = pad + rowIndex * (iconSize + rowGap);
-            ImGui.SetCursorPos(new Vector2(pad, rowY));
-            DrawSelfCooldownBarJobHeader(drawList, ImGui.GetCursorScreenPos(), iconSize, group.Entry.SourceJobIconId);
+            var rowMin = ImGui.GetWindowPos() + new Vector2(pad, pad + rowIndex * (rowHeight + MathF.Round(5.0f * scale)));
+            var rowMax = rowMin + new Vector2(ImGui.GetWindowWidth() - pad * 2.0f, rowHeight);
+            DrawSelfCooldownBarRowBackground(drawList, rowMin, rowMax, scale);
 
-            var cooldownX = pad + iconSize + headerGap;
-            for (var cooldownIndex = 0; cooldownIndex < group.Cooldowns.Count; cooldownIndex++) {
-                ImGui.SetCursorPos(new Vector2(cooldownX + cooldownIndex * (iconSize + spacing), rowY));
-                DrawPartyCooldownBarIcon(group.Entry, group.Cooldowns[cooldownIndex], iconSize, cooldownIndex);
+            // 职业图标
+            var jobIconMin = rowMin + new Vector2(6.0f, 6.0f);
+            var jobIconMax = jobIconMin + new Vector2(34.0f, 34.0f);
+            DrawGameIconImage(drawList, group.Entry.SourceJobIconId, jobIconMin, jobIconMax, true, true);
+
+            // 玩家名 + 职业名
+            var textX = jobIconMax.X + 8.0f;
+            drawList.AddText(new Vector2(textX, rowMin.Y + 6.0f), ImGui.GetColorU32(new Vector4(0.98f, 0.95f, 0.96f, 1.0f)), group.Entry.SourceName);
+            drawList.AddText(new Vector2(textX, rowMin.Y + 23.0f), ImGui.GetColorU32(new Vector4(0.72f, 0.56f, 0.62f, 0.90f)), group.Entry.SourceJobName);
+
+            // CD 图标
+            var cooldowns = group.Cooldowns;
+            if (cooldowns.Count == 0) {
+                continue;
+            }
+
+            var iconsWidth = cooldowns.Count * iconSize + Math.Max(0, cooldowns.Count - 1) * iconGap;
+            var iconX = Math.Max(textX + 72.0f, rowMax.X - iconsWidth - 8.0f);
+            var iconY = rowMin.Y + (rowHeight - iconSize) * 0.5f;
+            for (var cooldownIndex = 0; cooldownIndex < cooldowns.Count; cooldownIndex++) {
+                DrawNativeAttachedCooldownIcon(drawList, new Vector2(iconX + cooldownIndex * (iconSize + iconGap), iconY), cooldowns[cooldownIndex], iconSize);
             }
         }
     }
 
-    private void DrawSelfCooldownBarHorizontalLayout(ImDrawListPtr drawList, IReadOnlyList<SelfCooldownHorizontalRow> rows, float pad, float iconSize, float spacing, float groupGap, float headerGap) {
-        var rowStride = iconSize * 2.0f + headerGap + groupGap;
+    private void DrawSelfCooldownBarHorizontalLayout(ImDrawListPtr drawList, IReadOnlyList<SelfCooldownHorizontalRow> rows, float pad, float scale, float rowHeight, float iconSize, float iconGap) {
         for (var rowIndex = 0; rowIndex < rows.Count; rowIndex++) {
             var row = rows[rowIndex];
             var groupX = pad;
-            var headerY = pad + rowIndex * rowStride;
-            var cooldownY = headerY + iconSize + headerGap;
+            var rowY = pad + rowIndex * (rowHeight + MathF.Round(5.0f * scale));
             foreach (var group in row.Groups) {
-                var groupWidth = GetSelfCooldownHorizontalGroupWidth(group, iconSize, spacing);
-                ImGui.SetCursorPos(new Vector2(groupX + Math.Max(0.0f, (groupWidth - iconSize) * 0.5f), headerY));
-                DrawSelfCooldownBarJobHeader(drawList, ImGui.GetCursorScreenPos(), iconSize, group.Entry.SourceJobIconId);
+                var rowMin = ImGui.GetWindowPos() + new Vector2(groupX, rowY);
+                var rowMax = rowMin + new Vector2(GetSelfCooldownHorizontalGroupWidth(group, iconSize, iconGap), rowHeight);
+                DrawSelfCooldownBarRowBackground(drawList, rowMin, rowMax, scale);
 
-                for (var cooldownIndex = 0; cooldownIndex < group.Cooldowns.Count; cooldownIndex++) {
-                    ImGui.SetCursorPos(new Vector2(groupX + cooldownIndex * (iconSize + spacing), cooldownY));
-                    DrawPartyCooldownBarIcon(group.Entry, group.Cooldowns[cooldownIndex], iconSize, cooldownIndex);
+                // 职业图标
+                var jobIconMin = rowMin + new Vector2(6.0f, 6.0f);
+                var jobIconMax = jobIconMin + new Vector2(34.0f, 34.0f);
+                DrawGameIconImage(drawList, group.Entry.SourceJobIconId, jobIconMin, jobIconMax, true, true);
+
+                // 玩家名 + 职业名
+                var textX = jobIconMax.X + 8.0f;
+                drawList.AddText(new Vector2(textX, rowMin.Y + 6.0f), ImGui.GetColorU32(new Vector4(0.98f, 0.95f, 0.96f, 1.0f)), group.Entry.SourceName);
+                drawList.AddText(new Vector2(textX, rowMin.Y + 23.0f), ImGui.GetColorU32(new Vector4(0.72f, 0.56f, 0.62f, 0.90f)), group.Entry.SourceJobName);
+
+                // CD 图标
+                var cooldowns = group.Cooldowns;
+                if (cooldowns.Count == 0) {
+                    groupX = rowMax.X - ImGui.GetWindowPos().X + MathF.Round(5.0f * scale);
+                    continue;
                 }
 
-                groupX += groupWidth + groupGap;
+                var iconsWidth = cooldowns.Count * iconSize + Math.Max(0, cooldowns.Count - 1) * iconGap;
+                var iconX = Math.Max(textX + 72.0f, rowMax.X - iconsWidth - 8.0f);
+                var iconY = rowMin.Y + (rowHeight - iconSize) * 0.5f;
+                for (var cooldownIndex = 0; cooldownIndex < cooldowns.Count; cooldownIndex++) {
+                    DrawNativeAttachedCooldownIcon(drawList, new Vector2(iconX + cooldownIndex * (iconSize + iconGap), iconY), cooldowns[cooldownIndex], iconSize);
+                }
+
+                groupX = rowMax.X - ImGui.GetWindowPos().X + MathF.Round(5.0f * scale);
             }
         }
+    }
+
+    private static void DrawSelfCooldownBarRowBackground(ImDrawListPtr drawList, Vector2 rowMin, Vector2 rowMax, float scale) {
+        var rounding = MathF.Round(4.0f * scale);
+        drawList.AddRectFilled(rowMin, rowMax, ImGui.GetColorU32(new Vector4(0.14f, 0.11f, 0.16f, 0.78f)), rounding);
+        drawList.AddRect(rowMin, rowMax, ImGui.GetColorU32(new Vector4(0.35f, 0.22f, 0.28f, 0.72f)), rounding, (ImDrawFlags)0, 1.0f);
     }
 
     private unsafe void SortSelfCooldownGroupsByNativePartyList(List<SelfCooldownVisibleGroup> groups) {
@@ -310,58 +431,11 @@ public sealed partial class OverlayRenderer {
         return entityIds;
     }
 
-    private void DrawPartyCooldownBarIcon(PartyCooldownGroupEntry entry, CooldownEntry cooldown, float size, int index) {
-        var drawList = ImGui.GetWindowDrawList();
-        var cursorScreenPos = ImGui.GetCursorScreenPos();
-        var min = cursorScreenPos;
-        var max = min + new Vector2(size, size);
-
-        ImGui.InvisibleButton($"##party_cd_{entry.SourceObjectId}_{cooldown.IconId}_{cooldown.Name}_{index}", new Vector2(size, size));
-        DrawNativeAttachedCooldownIcon(drawList, min, cooldown, size);
-
-        if (ImGui.IsItemHovered()) {
-            DrawPartyCooldownTooltip(entry, cooldown);
-        }
-    }
-
-    private void DrawSelfCooldownBarJobHeader(ImDrawListPtr drawList, Vector2 min, float size, uint jobIconId) {
-        var max = min + new Vector2(size, size);
-        var rounding = Math.Max(3.0f, size * 0.12f);
-        var padding = MathF.Max(2.0f, MathF.Round(size * 0.045f));
-
-        drawList.AddRectFilled(
-            min - new Vector2(1.0f),
-            max + new Vector2(1.0f),
-            ImGui.GetColorU32(new Vector4(0.18f, 0.06f, 0.12f, 0.96f)),
-            rounding);
-        drawList.AddRectFilled(
-            min,
-            max,
-            ImGui.GetColorU32(new Vector4(0.96f, 0.80f, 0.88f, 0.88f)),
-            rounding);
-        if (jobIconId != 0) {
-            DrawGameIconImage(drawList, jobIconId, min + new Vector2(padding), max - new Vector2(padding), true);
-        }
-    }
-
     private static void DrawSelfCooldownBarCard(ImDrawListPtr drawList, Vector2 min, Vector2 max, float scale, float opacity) {
         var rounding = MathF.Round(8.0f * scale);
         drawList.AddRectFilled(min + new Vector2(1.0f, 2.0f), max + new Vector2(1.0f, 2.0f), ImGui.GetColorU32(new Vector4(0.20f, 0.08f, 0.14f, 0.10f * opacity)), rounding);
         drawList.AddRectFilled(min, max, ImGui.GetColorU32(new Vector4(1.0f, 0.94f, 0.97f, 0.28f * opacity)), rounding);
         drawList.AddRect(min, max, ImGui.GetColorU32(new Vector4(0.96f, 0.58f, 0.78f, 0.36f * opacity)), rounding, (ImDrawFlags)0, Math.Max(1.0f, 1.0f * scale));
-    }
-
-    private void DrawPartyCooldownTooltip(PartyCooldownGroupEntry entry, CooldownEntry cooldown) {
-        DrawStyledTooltip(() => {
-            ImGui.TextUnformatted(string.IsNullOrWhiteSpace(entry.SourceJobName) ? entry.SourceName : $"{entry.SourceName} · {entry.SourceJobName}");
-            ImGui.TextUnformatted(cooldown.Name);
-            ImGui.Separator();
-            if (cooldown.IsReady) {
-                ImGui.TextUnformatted("冷却：就绪");
-            } else {
-                ImGui.TextUnformatted($"冷却剩余：{FormatCooldownIconTime(cooldown.RemainingCooldownSeconds)}");
-            }
-        });
     }
 
     private void TrackSelfCooldownBarPosition() {

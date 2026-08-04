@@ -25,6 +25,8 @@ public sealed class WorldMarkerSystem : IDisposable {
         RegisterFactory(new FlagMarkerFactory(config));
         RegisterFactory(new QuestMarkerFactory(config));
         RegisterFactory(new MapLinkMarkerFactory(config, dataManager, objectTable));
+        RegisterFactory(new CustomMapMarkerFactory(config));
+        RegisterFactory(new TreasureMarkerFactory(config, dataManager, objectTable));
     }
 
     private void RegisterFactory(WorldMarkerFactory factory) {

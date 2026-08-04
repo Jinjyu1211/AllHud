@@ -14,4 +14,5 @@ public sealed record StatusEntry(
     bool IsSelfApplied,
     int StatusIndex = int.MaxValue,
     bool CanDispel = false,
-    bool PartyListPriority = false);
+    bool PartyListPriority = false,
+    byte StackCount = 0);

@@ -998,11 +998,9 @@ public sealed partial class OverlayRenderer {
 
             var entityId = nativeData.EntityId;
             var hasGroup = lookups.GroupsByEntityId.TryGetValue(entityId, out var group)
-                           || lookups.GroupsByObjectId.TryGetValue(entityId, out group)
-                           || lookups.GroupsByPartySlot.TryGetValue(nativeIndex, out group);
+                           || lookups.GroupsByObjectId.TryGetValue(entityId, out group);
             var hasFood = lookups.FoodByEntityId.TryGetValue(entityId, out var foodStatus)
-                          || lookups.FoodByObjectId.TryGetValue(entityId, out foodStatus)
-                          || lookups.FoodByPartySlot.TryGetValue(nativeIndex, out foodStatus);
+                          || lookups.FoodByObjectId.TryGetValue(entityId, out foodStatus);
             if (!hasGroup && !hasFood) {
                 continue;
             }

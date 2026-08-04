@@ -10,7 +10,7 @@ public enum ThemePreset {
 }
 
 public sealed class Configuration : IPluginConfiguration {
-    private const int CurrentVersion = 75;
+    private const int CurrentVersion = 78;
 
     public const string TaskBarComponentTime = "time";
     public const string TaskBarComponentLocalTime = "local_time";
@@ -69,6 +69,7 @@ public sealed class Configuration : IPluginConfiguration {
 
     public bool Locked { get; set; }
     public bool TargetInfoLocked { get; set; }
+    public bool TargetInfoMousePassthrough { get; set; }
     public bool StatusBarLocked { get; set; }
     public bool StatusBarMousePassthrough { get; set; }
     public bool PartyInfoMousePassthrough { get; set; }
@@ -107,6 +108,9 @@ public sealed class Configuration : IPluginConfiguration {
     public bool ShowPlayerPositionLabel { get; set; } = true;
     public bool ShowQuestMarkers { get; set; } = true;
     public bool ShowMapLinkMarkers { get; set; } = true;
+    public bool ShowCustomMapMarkers { get; set; } = true;
+    public bool ShowTreasureMarkers { get; set; } = true;
+    public Dictionary<uint, List<CustomMapMarkerDefinition>> CustomMapMarkerMaps { get; set; } = CustomMapMarkerDefaults.GetDefaults();
     public bool ShowCompass { get; set; } = true;
     public int CompassRadius { get; set; } = 400;
     public int CompassIconScale { get; set; } = 100;
@@ -149,7 +153,7 @@ public sealed class Configuration : IPluginConfiguration {
     public bool TaskBarGearsetClosePopupOnSwitch { get; set; } = true;
     public bool TaskBarShowCurrency { get; set; }
     public uint TaskBarCurrencyItemId { get; set; } = 1;
-    public bool TaskBarCurrencyShowName { get; set; }
+    public bool TaskBarCurrencyShowName { get; set; } = true;
     public string TaskBarPluginShortcutInternalName { get; set; } = string.Empty;
     public List<string> PluginListInternalNames { get; set; } = [];
     public Dictionary<string, string> PluginShortcutInternalNames { get; set; } = [];
@@ -692,6 +696,21 @@ public sealed class Configuration : IPluginConfiguration {
                 : CustomThemeEnabled
                     ? ThemePreset.Custom
                     : ThemePreset.Default;
+            changed = true;
+        }
+
+        if (Version < 76) {
+            TaskBarCurrencyShowName = true;
+            changed = true;
+        }
+
+        if (Version < 77) {
+            TaskBarCurrencyShowName = true;
+            changed = true;
+        }
+
+        if (Version < 78) {
+            CustomMapMarkerMaps = CustomMapMarkerDefaults.GetDefaults();
             changed = true;
         }
 

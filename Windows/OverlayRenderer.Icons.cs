@@ -45,15 +45,33 @@ public sealed partial class OverlayRenderer {
                 var countText = count >= 0 ? $"{count:N0}" : "--";
                 var rowMin = ImGui.GetCursorScreenPos();
                 var rowHeight = MathF.Round(26.0f * scale);
-                var rowMax = rowMin + new Vector2(Math.Max(180.0f * scale, ImGui.GetContentRegionAvail().X), rowHeight);
+                var rowWidth = Math.Max(180.0f * scale, ImGui.GetContentRegionAvail().X);
+                var rowMax = rowMin + new Vector2(rowWidth, rowHeight);
                 var selected = currency.ItemId == this.config.TaskBarCurrencyItemId;
-                drawList.AddRectFilled(rowMin, rowMax, ImGui.GetColorU32(selected ? new Vector4(0.96f, 0.74f, 0.86f, 0.34f) : new Vector4(1.0f, 0.96f, 0.98f, 0.18f)), 6.0f * scale);
+
+                ImGui.PushID((int)currency.ItemId);
+                ImGui.SetCursorScreenPos(rowMin);
+                ImGui.InvisibleButton("##currency_row", new Vector2(rowWidth, rowHeight));
+                var hovered = ImGui.IsItemHovered();
+                var clicked = ImGui.IsItemClicked(ImGuiMouseButton.Left);
+                if (clicked) {
+                    this.config.TaskBarCurrencyItemId = currency.ItemId;
+                }
+
+                var bgColor = selected
+                    ? new Vector4(0.96f, 0.74f, 0.86f, 0.34f)
+                    : hovered ? new Vector4(1.0f, 0.86f, 0.93f, 0.28f) : new Vector4(1.0f, 0.96f, 0.98f, 0.18f);
+                drawList.AddRectFilled(rowMin, rowMax, ImGui.GetColorU32(bgColor), 6.0f * scale);
+
                 if (currency.IconId != 0) {
                     DrawGameIconImage(drawList, currency.IconId, rowMin + new Vector2(4.0f * scale, 3.0f * scale), rowMin + new Vector2(24.0f * scale, 23.0f * scale), true, true);
                 }
 
-                ImGui.SetCursorScreenPos(rowMin + new Vector2(30.0f * scale, Math.Max(0.0f, (rowHeight - ImGui.GetTextLineHeight()) * 0.5f)));
-                ImGui.TextUnformatted($"{currency.Name}：{countText}");
+                var textColor = selected
+                    ? ImGui.GetColorU32(new Vector4(0.34f, 0.16f, 0.26f, 1.0f))
+                    : ImGui.GetColorU32(new Vector4(0.24f, 0.16f, 0.20f, 1.0f));
+                drawList.AddText(rowMin + new Vector2(30.0f * scale, Math.Max(0.0f, (rowHeight - ImGui.GetTextLineHeight()) * 0.5f)), textColor, $"{currency.Name}：{countText}");
+                ImGui.PopID();
                 ImGui.SetCursorScreenPos(new Vector2(rowMin.X, rowMax.Y + 3.0f * scale));
             }
         });

@@ -755,6 +755,8 @@ public sealed unsafe partial class CombatStateTracker : IDisposable {
             TryGetBoolProperty(row, out var canDispel, "CanDispel", "CanEsuna");
             TryGetBoolProperty(row, out var partyListPriority, "PartyListPriority", "PartyListPrio", "PriorityPartyList");
 
+            var stackCount = row.MaxStacks > 0 ? (byte)nativeStatus.Param : (byte)0;
+
             result.Add(new StatusEntry(
                 nativeStatus.StatusId,
                 row.Icon,
@@ -769,7 +771,8 @@ public sealed unsafe partial class CombatStateTracker : IDisposable {
                 localPlayerId != 0 && sourceObjectId == localPlayerId,
                 index,
                 canDispel,
-                partyListPriority));
+                partyListPriority,
+                stackCount));
         }
 
         return result;

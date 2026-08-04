@@ -343,7 +343,7 @@ public sealed unsafe partial class CombatStateTracker : IDisposable {
         var cooldowns = definitions
             .Where(definition => IsSourceClassJobAllowed(definition, member.ClassJobId))
             .Where(definition => definition.SourceClassJobIds.Count > 0)
-            .Where(definition => definition.Group == CooldownGroup.RaidBuff || IsDefinitionSelected(definition, member.ClassJobId, enabledKeys))
+            .Where(definition => definition.Group is CooldownGroup.RaidBuff or CooldownGroup.PartyMitigation || IsDefinitionSelected(definition, member.ClassJobId, enabledKeys))
             .Select(definition => FindObservedCooldown(member, definition, observedEntries)
                                   ?? CreateReadyCooldown(member, definition))
             .GroupBy(entry => (entry.Group, entry.StatusId, entry.ActionId))
@@ -993,9 +993,16 @@ public sealed unsafe partial class CombatStateTracker : IDisposable {
     }
 
     // 独立监控冷却栏数据源：从 EnabledJobActionKeys 物化用户实际勾选的技能（含团辅/爆发/单体减伤/长 CD），
-    // 用选择器的分组语义过滤（剔除团减），保证"勾什么职业就显示什么"，预览与实战共用同一份。
+    // 自动包含团队减伤技能（PartyMitigation），保证团队减伤始终显示。
     private IEnumerable<TrackedStatusDefinition> GetSelectedPartyDefinitions(Configuration config) {
         TrackedActionCatalog.EnsureActionSelectionInitialized(config);
+
+        // 自动包含团队减伤技能
+        foreach (var def in TrackedActionCatalog.PartyMitigationDefinitions) {
+            if (IsPartyVisibleDefinition(def)) {
+                yield return def;
+            }
+        }
 
         foreach (var key in config.EnabledJobActionKeys ?? Enumerable.Empty<string>()) {
             if (!TryParseActionKey(key, out var classJobId, out var actionId)) {
@@ -1188,6 +1195,7 @@ public sealed unsafe partial class CombatStateTracker : IDisposable {
         var normalized = group == CooldownGroup.TargetMitigation ? CooldownGroup.PartyMitigation : group;
         return normalized is CooldownGroup.RaidBuff
             or CooldownGroup.Burst
+            or CooldownGroup.PartyMitigation
             or CooldownGroup.PersonalMitigation
             or CooldownGroup.Mitigation
             or CooldownGroup.Personal;

@@ -1,19 +1,19 @@
-{
-  "Author": "Jinjyu1211 (Original: QiongHHHZZZ)",
-  "Name": "AllHud",
-  "InternalName": "AllHud",
-  "Version": "0.0.0.18",
-  "AssemblyVersion": "0.0.0.18",
-  "DalamudApiLevel": 15,
-  "Punchline": "定制 HUD 插件。",
-  "Description": "修改自穷孩子的原插件，魔改版，有问题别找穷孩子。",
-  "ApplicableVersion": "any",
-  "Tags": [
-    "hud",
-    "overlay",
-    "ui",
-    "info",
-    "party",
-    "combat"
-  ]
+﻿{
+    "Author":  "Jinjyu1211 (Original: QiongHHHZZZ)",
+    "Name":  "AllHud",
+    "InternalName":  "AllHud",
+    "Version":  "0.0.0.19",
+    "AssemblyVersion":  "0.0.0.19",
+    "DalamudApiLevel":  15,
+    "Punchline":  "定制 HUD 插件。",
+    "Description":  "修改自穷孩子的原插件，魔改版，有问题别找穷孩子。",
+    "ApplicableVersion":  "any",
+    "Tags":  [
+                 "hud",
+                 "overlay",
+                 "ui",
+                 "info",
+                 "party",
+                 "combat"
+             ]
 }

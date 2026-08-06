@@ -2,8 +2,8 @@
     "Author":  "Jinjyu1211 (Original: QiongHHHZZZ)",
     "Name":  "AllHud",
     "InternalName":  "AllHud",
-    "Version":  "0.0.0.19",
-    "AssemblyVersion":  "0.0.0.19",
+    "Version":  "0.0.0.20",
+    "AssemblyVersion":  "0.0.0.20",
     "Description":  "Customized HUD plugin.",
     "ApplicableVersion":  "any",
     "Tags":  [
@@ -18,9 +18,9 @@
                          "ui"
                      ],
     "DalamudApiLevel":  15,
-    "DownloadLinkInstall":  "https://gh-proxy.com/https://github.com/Jinjyu1211/AllHud/releases/download/v0.0.0.19/AllHud-0.0.0.19.zip",
-    "DownloadLinkUpdate":  "https://gh-proxy.com/https://github.com/Jinjyu1211/AllHud/releases/download/v0.0.0.19/AllHud-0.0.0.19.zip",
-    "DownloadLinkTesting":  "https://gh-proxy.com/https://github.com/Jinjyu1211/AllHud/releases/download/v0.0.0.19/AllHud-0.0.0.19.zip",
+    "DownloadLinkInstall":  "https://gh-proxy.com/https://github.com/Jinjyu1211/AllHud/releases/download/v0.0.0.20/AllHud-0.0.0.20.zip",
+    "DownloadLinkUpdate":  "https://gh-proxy.com/https://github.com/Jinjyu1211/AllHud/releases/download/v0.0.0.20/AllHud-0.0.0.20.zip",
+    "DownloadLinkTesting":  "https://gh-proxy.com/https://github.com/Jinjyu1211/AllHud/releases/download/v0.0.0.20/AllHud-0.0.0.20.zip",
     "LoadRequiredState":  0,
     "LoadSync":  false,
     "CanUnloadAsync":  false,
@@ -29,5 +29,5 @@
     "AcceptsFeedback":  true,
     "IsHide":  false,
     "IsTestingExclusive":  false,
-    "LastUpdated":  1785844061
+    "LastUpdated":  1786012162
 }

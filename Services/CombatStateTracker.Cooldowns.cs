@@ -997,14 +997,42 @@ public sealed unsafe partial class CombatStateTracker : IDisposable {
     private IEnumerable<TrackedStatusDefinition> GetSelectedPartyDefinitions(Configuration config) {
         TrackedActionCatalog.EnsureActionSelectionInitialized(config);
 
-        // 自动包含团队减伤技能
+        var enabledKeys = config.EnabledJobActionKeys ?? Enumerable.Empty<string>();
+        var enabledActionIds = enabledKeys
+            .Select(key => {
+                if (TryParseActionKey(key, out var classJobId, out var actionId)) {
+                    return (classJobId, actionId);
+                }
+                return (uint.MaxValue, uint.MaxValue);
+            })
+            .ToHashSet();
+
+        // 自动包含团队减伤技能，但跳过已被用户勾选的（避免重复）
         foreach (var def in TrackedActionCatalog.PartyMitigationDefinitions) {
-            if (IsPartyVisibleDefinition(def)) {
-                yield return def;
+            if (!IsPartyVisibleDefinition(def)) {
+                continue;
             }
+
+            // 检查是否已被用户勾选
+            var actionId = def.ActionIds.FirstOrDefault();
+            if (actionId != 0) {
+                var commonKey = TrackedActionCatalog.GetCommonActionKey(actionId);
+                if (enabledKeys.Contains(commonKey)) {
+                    continue;
+                }
+
+                // 检查是否有任何特定职业的勾选
+                var isSelectedByAnyJob = def.SourceClassJobIds
+                    .Any(jobId => enabledKeys.Contains(TrackedActionCatalog.GetActionKey(jobId, actionId)));
+                if (isSelectedByAnyJob) {
+                    continue;
+                }
+            }
+
+            yield return def;
         }
 
-        foreach (var key in config.EnabledJobActionKeys ?? Enumerable.Empty<string>()) {
+        foreach (var key in enabledKeys) {
             if (!TryParseActionKey(key, out var classJobId, out var actionId)) {
                 continue;
             }

@@ -99,6 +99,15 @@ public sealed partial class ConfigWindow {
         new(10307, "百战徽章"),
         new(26807, "双色宝石"),
         new(28, "亚拉戈诗学神典石"),
+        new(20, "大国防联军徽"),
+        new(25199, "巧手黄票"),
+        new(33913, "巧手紫票"),
+        new(25200, "大地黄票"),
+        new(33914, "大地紫票"),
+        new(28063, "天穹街振兴票"),
+        new(41784, "巧手橙票"),
+        new(41785, "大地橙票"),
+        new(36656, "战利水晶"),
     ];
     private readonly Configuration config;
     private readonly CombatStateTracker combatState;

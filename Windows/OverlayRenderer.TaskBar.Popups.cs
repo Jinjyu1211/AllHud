@@ -924,6 +924,15 @@ public sealed partial class OverlayRenderer {
         new(CurrencyItemCenturioSeals, "百战徽章", 0),
         new(CurrencyItemBiColorGemstones, "双色宝石", 0),
         new(CurrencyItemPoetics, "亚拉戈诗学神典石", 0),
+        new(CurrencyItemGrandCompanySeals, "大国防联军徽", 0),
+        new(CurrencyItemYellowCrafterScrip, "巧手黄票", 0),
+        new(CurrencyItemPurpleCrafterScrip, "巧手紫票", 0),
+        new(CurrencyItemYellowGathererScrip, "大地黄票", 0),
+        new(CurrencyItemPurpleGathererScrip, "大地紫票", 0),
+        new(CurrencyItemSkybuildersScrip, "天穹街振兴票", 0),
+        new(CurrencyItemOrangeCrafterScrip, "巧手橙票", 0),
+        new(CurrencyItemOrangeGathererScrip, "大地橙票", 0),
+        new(CurrencyItemTrophyCrystals, "战利水晶", 0),
     ];
 
     private List<CurrencyDisplayInfo>? scannedTomestones;

@@ -10,3 +10,4 @@ obj/
 *.snupkg
 TestResults/
 coverage/
+*.zip

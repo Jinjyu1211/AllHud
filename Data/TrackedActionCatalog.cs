@@ -681,8 +681,19 @@ public static class TrackedActionCatalog {
     }
 
     private static void RemovePartyInfoActionKeys(List<string> keys) {
-        keys.RemoveAll(key => TryParseActionKey(key, out _, out var actionId)
-                              && PartyMitigationActionIds.Contains(actionId));
+        keys.RemoveAll(key => {
+            if (!TryParseActionKey(key, out _, out var actionId)) {
+                return false;
+            }
+
+            if (!PartyMitigationActionIds.Contains(actionId)) {
+                return false;
+            }
+
+            // 通用键（classJobId=0）直接移除
+            // 职业键也移除：团减已由 PartyMitigationDefinitions 自动产出，独立监控不应保留
+            return true;
+        });
     }
 
     private static bool TryParseActionKey(string key, out uint classJobId, out uint actionId) {

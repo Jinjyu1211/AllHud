@@ -73,6 +73,30 @@ public sealed partial class OverlayRenderer {
             return;
         }
 
+        // 当队伍栏减伤已显示时，独立监控栏需过滤掉"纯减伤"技能，避免在同一位置（职业图标左侧）重复绘制。
+        // 保留用户勾选的 RaidBuff/Burst/PersonalMitigation 等非纯减伤内容。
+        var suppressMitigation = IsMitigationCooldownsVisible();
+        if (suppressMitigation) {
+            groups = groups
+                .Select(group => new PartyCooldownGroupEntry(
+                    group.SourceName,
+                    group.SourceJobName,
+                    group.SourceClassJobId,
+                    group.SourceJobIconId,
+                    group.SourceObjectId,
+                    group.SourceEntityId,
+                    group.IsLocalPlayer,
+                    group.PartySlot,
+                    group.Cooldowns
+                        .Where(cooldown => !IsMitigationCooldownEntry(cooldown))
+                        .ToList()))
+                .Where(group => group.Cooldowns.Count > 0)
+                .ToList();
+            if (groups.Count == 0) {
+                return;
+            }
+        }
+
         var addonPtr = this.gameGui.GetAddonByName("_PartyList");
         if (addonPtr.IsNull) {
             return;
@@ -460,5 +484,16 @@ public sealed partial class OverlayRenderer {
         this.saveConfig();
         this.lastSavedSelfCooldownBarPosition = this.config.SelfCooldownBarPosition;
         this.selfCooldownBarPositionSaveDueAt = null;
+    }
+
+    // 与 OverlayRenderer.GetNativeAttachedMitigationCooldowns 的筛选标准保持一致：
+    // 归为 PartyMitigation / Mitigation 的分组，或 ActionId 在队伍额外减伤白名单中的条目，
+    // 会在"队伍信息减伤栏"展示，因此在"独立监控栏"中需剔除以避免同位置重复绘制。
+    private static bool IsMitigationCooldownEntry(CooldownEntry cooldown) {
+        var normalized = cooldown.Group == CooldownGroup.TargetMitigation
+            ? CooldownGroup.PartyMitigation
+            : cooldown.Group;
+        return normalized is CooldownGroup.PartyMitigation or CooldownGroup.Mitigation
+               || TrackedActionCatalog.PartyInfoExtraMitigationActionIds.Contains(cooldown.ActionId);
     }
 }

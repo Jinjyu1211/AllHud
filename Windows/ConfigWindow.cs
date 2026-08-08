@@ -26,6 +26,7 @@ public sealed partial class ConfigWindow {
         技能,
         外观,
         世界标记,
+        QC,
         调试,
     }
 
@@ -115,6 +116,7 @@ public sealed partial class ConfigWindow {
     private readonly IDalamudPluginInterface pluginInterface;
     private readonly IDataManager dataManager;
     private readonly Action saveConfig;
+    private readonly QCConfigPage qcConfigPage;
     private readonly List<Dalamud.Plugin.IExposedPlugin> installedPluginSelectionCache = [];
     private readonly Dictionary<string, Dalamud.Plugin.IExposedPlugin> installedPluginSelectionByInternalName = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, string> pluginListTileTextCache = new(StringComparer.OrdinalIgnoreCase);
@@ -134,16 +136,21 @@ public sealed partial class ConfigWindow {
     private TaskBarPage selectedTaskBarPage = TaskBarPage.任务栏;
     private int selectedAuxiliaryBarIndex;
 
-    public ConfigWindow(Configuration config, CombatStateTracker combatState, ITextureProvider textureProvider, IDalamudPluginInterface pluginInterface, IDataManager dataManager, Action saveConfig) {
+    public ConfigWindow(Configuration config, CombatStateTracker combatState, ITextureProvider textureProvider, IDalamudPluginInterface pluginInterface, IDataManager dataManager, Action saveConfig, QCConfigPage qcConfigPage) {
         this.config = config;
         this.combatState = combatState;
         this.textureProvider = textureProvider;
         this.pluginInterface = pluginInterface;
         this.dataManager = dataManager;
         this.saveConfig = saveConfig;
+        this.qcConfigPage = qcConfigPage;
     }
 
     public bool IsOpen { get; set; }
+
+    public void SelectQcTab() {
+        this.selectedPage = ConfigPage.QC;
+    }
 
     private static void DrawStyledTooltip(string text) {
         DrawStyledTooltip(() => ImGui.TextUnformatted(text));
@@ -589,6 +596,7 @@ public sealed partial class ConfigWindow {
         DrawNavButton(ConfigPage.技能, "独立监控");
         DrawNavButton(ConfigPage.外观, "外观主题");
         DrawNavButton(ConfigPage.世界标记, "世界标记");
+        DrawNavButton(ConfigPage.QC, "QC 快捷栏");
         DrawNavButton(ConfigPage.调试, "调试");
 
         ImGui.Unindent(4.0f);
@@ -756,6 +764,9 @@ public sealed partial class ConfigWindow {
                 break;
             case ConfigPage.世界标记:
                 DrawWorldMarkersPage();
+                break;
+            case ConfigPage.QC:
+                this.qcConfigPage.Draw();
                 break;
             case ConfigPage.调试:
                 DrawDebugPage();

@@ -434,6 +434,8 @@ public sealed unsafe partial class CombatStateTracker : IDisposable {
             .Where(definition => IsSourceClassJobAllowed(definition, member.ClassJobId))
             .Select(definition => FindObservedCooldown(member, definition, observedEntries)
                                   ?? CreateReadyCooldown(member, definition))
+            .GroupBy(entry => (entry.Group, entry.StatusId, entry.ActionId))
+            .Select(group => group.First())
             .OrderBy(entry => entry.Group)
             .ThenBy(entry => entry.IsReady)
             .ThenBy(entry => entry.RemainingCooldownSeconds)
@@ -998,14 +1000,8 @@ public sealed unsafe partial class CombatStateTracker : IDisposable {
         TrackedActionCatalog.EnsureActionSelectionInitialized(config);
 
         var enabledKeys = config.EnabledJobActionKeys ?? Enumerable.Empty<string>();
-        var enabledActionIds = enabledKeys
-            .Select(key => {
-                if (TryParseActionKey(key, out var classJobId, out var actionId)) {
-                    return (classJobId, actionId);
-                }
-                return (uint.MaxValue, uint.MaxValue);
-            })
-            .ToHashSet();
+        var enabledSet = new HashSet<string>(enabledKeys, StringComparer.Ordinal);
+        var yieldedKeys = new HashSet<string>(StringComparer.Ordinal);
 
         // 自动包含团队减伤技能，但跳过已被用户勾选的（避免重复）
         foreach (var def in TrackedActionCatalog.PartyMitigationDefinitions) {
@@ -1013,22 +1009,16 @@ public sealed unsafe partial class CombatStateTracker : IDisposable {
                 continue;
             }
 
-            // 检查是否已被用户勾选
-            var actionId = def.ActionIds.FirstOrDefault();
-            if (actionId != 0) {
-                var commonKey = TrackedActionCatalog.GetCommonActionKey(actionId);
-                if (enabledKeys.Contains(commonKey)) {
-                    continue;
-                }
-
-                // 检查是否有任何特定职业的勾选
-                var isSelectedByAnyJob = def.SourceClassJobIds
-                    .Any(jobId => enabledKeys.Contains(TrackedActionCatalog.GetActionKey(jobId, actionId)));
-                if (isSelectedByAnyJob) {
-                    continue;
-                }
+            // 检查是否已被用户勾选（任一 actionId 的通用键或职业键命中即视为已选）
+            var isUserSelected = def.ActionIds
+                .Where(actionId => actionId != 0)
+                .Any(actionId => enabledSet.Contains(TrackedActionCatalog.GetCommonActionKey(actionId))
+                                 || def.SourceClassJobIds.Any(jobId => enabledSet.Contains(TrackedActionCatalog.GetActionKey(jobId, actionId))));
+            if (isUserSelected) {
+                continue;
             }
 
+            yieldedKeys.Add(GetDefinitionCanonicalKey(def));
             yield return def;
         }
 
@@ -1040,7 +1030,10 @@ public sealed unsafe partial class CombatStateTracker : IDisposable {
             if (classJobId == 0) {
                 var commonSkill = TrackedActionCatalog.FindCommonSkill(actionId);
                 if (commonSkill is not null && IsPartyVisibleDefinition(commonSkill.Definition)) {
-                    yield return commonSkill.Definition;
+                    var canonicalKey = GetDefinitionCanonicalKey(commonSkill.Definition);
+                    if (yieldedKeys.Add(canonicalKey)) {
+                        yield return commonSkill.Definition;
+                    }
                 }
 
                 continue;
@@ -1049,7 +1042,10 @@ public sealed unsafe partial class CombatStateTracker : IDisposable {
             var knownSkill = TrackedActionCatalog.FindKnownSkill(classJobId, actionId);
             if (knownSkill is not null) {
                 if (IsPartyVisibleDefinition(knownSkill.Definition)) {
-                    yield return knownSkill.Definition;
+                    var canonicalKey = GetDefinitionCanonicalKey(knownSkill.Definition);
+                    if (yieldedKeys.Add(canonicalKey)) {
+                        yield return knownSkill.Definition;
+                    }
                 }
 
                 continue;
@@ -1060,9 +1056,13 @@ public sealed unsafe partial class CombatStateTracker : IDisposable {
                 continue;
             }
 
-            yield return new TrackedStatusDefinition(
+            var runtimeDef = new TrackedStatusDefinition(
                 0, action.Name, action.Group, action.CooldownSeconds, 0.0f, false,
                 new[] { actionId }, new[] { classJobId });
+            var runtimeCanonicalKey = GetDefinitionCanonicalKey(runtimeDef);
+            if (yieldedKeys.Add(runtimeCanonicalKey)) {
+                yield return runtimeDef;
+            }
         }
     }
 
@@ -1090,8 +1090,12 @@ public sealed unsafe partial class CombatStateTracker : IDisposable {
     }
 
     private static string GetDefinitionIdentity(TrackedStatusDefinition definition) {
+        return GetDefinitionCanonicalKey(definition);
+    }
+
+    private static string GetDefinitionCanonicalKey(TrackedStatusDefinition definition) {
         var actionId = definition.ActionIds.FirstOrDefault();
-        return $"{definition.Group}:{definition.StatusId}:{actionId}:{string.Join(',', definition.SourceClassJobIds)}";
+        return $"{definition.Group}:{definition.StatusId}:{actionId}";
     }
 
     private static bool TryParseActionKey(string key, out uint classJobId, out uint actionId) {

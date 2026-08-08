@@ -1,0 +1,19 @@
+name: QoLBar Import Test
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  test:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run QoLBar import format test
+        shell: pwsh
+        run: ./QC/test_qolbar_import.ps1

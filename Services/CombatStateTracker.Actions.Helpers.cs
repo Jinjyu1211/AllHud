@@ -393,21 +393,32 @@ public sealed unsafe partial class CombatStateTracker : IDisposable {
         bool isActive,
         float activeRemainingSeconds,
         CooldownObservationKind observationKind) {
-        var key = new CooldownKey(GetDefinitionKeyId(definition), sourceObjectId, definition.Group);
+        var keyId = GetDefinitionKeyId(definition);
+        var group = definition.Group;
+        var key = new CooldownKey(keyId, sourceObjectId, group);
         var iconId = GetDefinitionIconId(definition);
+
         if (!this.observedCooldowns.TryGetValue(key, out var observed)) {
-            this.observedCooldowns[key] = new ObservedCooldown(
-                definition,
-                iconId,
-                sourceName,
-                sourceJobName,
-                sourceObjectId,
-                readyAt,
-                observedAt,
-                isActive && activeRemainingSeconds > 0.05f,
-                Math.Max(0.0f, activeRemainingSeconds),
-                observationKind);
-            return;
+            observed = FindExistingCooldownBySkill(keyId, group, sourceObjectId);
+            if (observed is not null) {
+                var oldKey = new CooldownKey(keyId, observed.SourceObjectId, group);
+                this.observedCooldowns.Remove(oldKey);
+                this.observedCooldowns[key] = observed;
+            }
+            else {
+                this.observedCooldowns[key] = new ObservedCooldown(
+                    definition,
+                    iconId,
+                    sourceName,
+                    sourceJobName,
+                    sourceObjectId,
+                    readyAt,
+                    observedAt,
+                    isActive && activeRemainingSeconds > 0.05f,
+                    Math.Max(0.0f, activeRemainingSeconds),
+                    observationKind);
+                return;
+            }
         }
 
         observed.IconId = iconId;
@@ -437,6 +448,21 @@ public sealed unsafe partial class CombatStateTracker : IDisposable {
             observed.ReadyAt = readyAt;
             observed.ObservationKind = observationKind;
         }
+    }
+
+    private ObservedCooldown? FindExistingCooldownBySkill(uint keyId, CooldownGroup group, ulong sourceObjectId) {
+        foreach (var (existingKey, existing) in this.observedCooldowns) {
+            if (existingKey.StatusId == keyId && existingKey.Group == group) {
+                if (existing.SourceObjectId == sourceObjectId
+                    || existing.SourceObjectId == 0
+                    || sourceObjectId == 0
+                    || (existing.SourceObjectId > uint.MaxValue && sourceObjectId <= uint.MaxValue)
+                    || (sourceObjectId > uint.MaxValue && existing.SourceObjectId <= uint.MaxValue)) {
+                    return existing;
+                }
+            }
+        }
+        return null;
     }
 
     private static int GetObservationPriority(CooldownObservationKind observationKind) {

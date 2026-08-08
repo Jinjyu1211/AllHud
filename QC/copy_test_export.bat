@@ -1,0 +1,5 @@
+@echo off
+echo Copying QoLBar test export to clipboard...
+powershell -Command "Set-Clipboard -Value 'H4sIAAAAAAAEAHVQywrCMBC89yuWnIumtUUREVS8efAgeJAe0rRifTRiopfiv7ubpEKLnjIzO7NspgkAWB6zKTSIENcI2a7UZikeLHSa3qB4sBig8Z7tQ73UpWQhMIOc4ytJHwoJfgYzM6f5BfUoSshRLBCP01EK77C3cK2ftfi57jtx8SjFtA1n/sATqkdx1aXnBfLEY0EJj1+IY4/zPQ049/ROX0yRQsJ5u1eTZdBatPVM0JGhYO9nUveqW6lbLsxK1UVlKlW3FcpugxVZ5ZH+5O5zafcHYIoa6DRkA+fWH/8JuFLouOD9AQbt6KbaAQAA'"
+echo Done. Now paste into QC config page.
+pause

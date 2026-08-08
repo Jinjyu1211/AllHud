@@ -1,5 +1,6 @@
 using AllHud.Services;
 using AllHud.Windows;
+using Dalamud.Game.Command;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 
@@ -12,6 +13,11 @@ public sealed class Plugin : IDalamudPlugin {
     private readonly CombatStateTracker combatState;
     private readonly OverlayRenderer overlayRenderer;
     private readonly ConfigWindow configWindow;
+    private readonly QCManager qcManager;
+    private readonly QCRenderer qcRenderer;
+    private readonly QCConfigPage qcConfigPage;
+    private readonly IFramework framework;
+    private readonly ICommandManager commandManager;
 
     public Plugin(
         IDalamudPluginInterface pluginInterface,
@@ -30,9 +36,12 @@ public sealed class Plugin : IDalamudPlugin {
         IGameConfig gameConfig,
         IGameInventory gameInventory,
         IDtrBar dtrBar,
-        IPluginLog log) {
+        IPluginLog log,
+        IKeyState keyState) {
         this.pluginInterface = pluginInterface;
         this.log = log;
+        this.framework = framework;
+        this.commandManager = commandManager;
 
         try {
             this.log.Information("AllHud initializing: loading configuration.");
@@ -50,13 +59,24 @@ public sealed class Plugin : IDalamudPlugin {
             this.log.Information("AllHud initializing: creating overlay renderer.");
             this.overlayRenderer = new OverlayRenderer(this.config, this.combatState, dataManager, textureProvider, gameGui, addonEventManager, commandManager, gameConfig, gameInventory, clientState, objectTable, dtrBar, this.pluginInterface, SaveConfig);
 
+            this.log.Information("AllHud initializing: creating QC module.");
+            this.qcManager = new QCManager(this.config, log, commandManager, condition, clientState, objectTable, framework, keyState);
+            this.qcRenderer = new QCRenderer(this.qcManager, this.config, textureProvider, this.pluginInterface);
+            this.qcConfigPage = new QCConfigPage(this.qcManager, this.config, SaveConfig);
+
+            this.log.Information("AllHud initializing: registering /qc command.");
+            commandManager.AddHandler("/qc", new CommandInfo(OnQcCommand) {
+                HelpMessage = "打开QC快捷栏配置界面。",
+            });
+
             this.log.Information("AllHud initializing: creating config window.");
-            this.configWindow = new ConfigWindow(this.config, this.combatState, textureProvider, this.pluginInterface, dataManager, SaveConfig);
+            this.configWindow = new ConfigWindow(this.config, this.combatState, textureProvider, this.pluginInterface, dataManager, SaveConfig, this.qcConfigPage);
 
             this.log.Information("AllHud initializing: registering UI callbacks.");
             this.pluginInterface.UiBuilder.Draw += Draw;
             this.pluginInterface.UiBuilder.OpenConfigUi += OpenConfigUi;
             this.pluginInterface.UiBuilder.OpenMainUi += OpenConfigUi;
+            framework.Update += OnFrameworkUpdate;
 
             this.log.Information("AllHud loaded.");
         } catch (Exception ex) {
@@ -69,19 +89,34 @@ public sealed class Plugin : IDalamudPlugin {
         this.pluginInterface.UiBuilder.Draw -= Draw;
         this.pluginInterface.UiBuilder.OpenConfigUi -= OpenConfigUi;
         this.pluginInterface.UiBuilder.OpenMainUi -= OpenConfigUi;
+        this.framework.Update -= OnFrameworkUpdate;
         this.pluginInterface.UiBuilder.OverrideGameCursor = true;
+        this.commandManager.RemoveHandler("/qc");
         this.overlayRenderer.Dispose();
+        this.qcRenderer.Dispose();
+        this.qcManager.Dispose();
         this.combatState.Dispose();
         this.log.Information("AllHud disposed.");
     }
 
+    private void OnFrameworkUpdate(IFramework framework) {
+        this.qcManager.OnFrameworkUpdate();
+        this.qcManager.ProcessCommandQueue();
+    }
+
     private void Draw() {
         this.overlayRenderer.Draw();
+        this.qcRenderer.DrawAllBars();
         this.configWindow.Draw();
     }
 
     private void OpenConfigUi() {
         this.configWindow.IsOpen = !this.configWindow.IsOpen;
+    }
+
+    private void OnQcCommand(string command, string arguments) {
+        this.configWindow.IsOpen = true;
+        this.configWindow.SelectQcTab();
     }
 
     private void SaveConfig() {

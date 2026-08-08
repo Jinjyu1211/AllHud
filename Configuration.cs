@@ -230,6 +230,11 @@ public sealed class Configuration : IPluginConfiguration {
     public List<CustomTrackedDefinition> CustomTrackedDefinitions { get; set; } = [];
     public List<CustomCurrencyDefinition> CustomCurrencies { get; set; } = [];
 
+    // QC 快捷栏
+    public List<QCBarDefinition> QCBars { get; set; } = [];
+    public Dictionary<string, QCShortcutDefinition> QCShortcuts { get; set; } = [];
+    public List<QCConditionSetDefinition> QCConditionSets { get; set; } = [];
+
     public bool ApplyMigrations() {
         var changed = false;
 

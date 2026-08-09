@@ -1,12 +1,12 @@
-﻿{
+{
     "Author":  "Jinjyu1211 (Original: QiongHHHZZZ)",
     "Name":  "AllHud",
     "InternalName":  "AllHud",
-    "Version":  "0.0.0.20",
-    "AssemblyVersion":  "0.0.0.20",
+    "Version":  "0.0.0.23",
+    "AssemblyVersion":  "0.0.0.23",
     "DalamudApiLevel":  15,
-    "Punchline":  "定制 HUD 插件。",
-    "Description":  "修改自穷孩子的原插件，魔改版，有问题别找穷孩子。",
+    "Punchline":  "\u5B9A\u5236 HUD \u63D2\u4EF6\u3002",
+    "Description":  "\u4FEE\u6539\u81EA\u7A77\u5B69\u5B50\u7684\u539F\u63D2\u4EF6\uFF0C\u9B54\u6539\u7248\uFF0C\u6709\u95EE\u9898\u522B\u627E\u7A77\u5B69\u5B50\u3002",
     "ApplicableVersion":  "any",
     "Tags":  [
                  "hud",

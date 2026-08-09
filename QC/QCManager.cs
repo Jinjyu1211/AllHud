@@ -1,10 +1,15 @@
 using Dalamud.Plugin.Services;
 using Dalamud.Game.ClientState.Conditions;
+using Dalamud.Utility.Signatures;
 using System.Numerics;
+using System.Runtime.InteropServices;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using FFXIVClientStructs.FFXIV.Client.UI;
 using FFXIVClientStructs.FFXIV.Client.UI.Misc;
 using FFXIVClientStructs.FFXIV.Client.System.Framework;
+using FFXIVClientStructs.FFXIV.Client.System.String;
+using FFXIVClientStructs.FFXIV.Client.UI.Shell;
+using FFXIVClientStructs.FFXIV.Component.GUI;
 
 namespace AllHud;
 
@@ -20,17 +25,19 @@ public sealed class QCManager : IDisposable {
     private readonly Dictionary<string, bool> conditionCache = [];
     private long lastCacheUpdateMs;
 
-    // Command queue for rate limiting (instance-level, not static)
+    // Command queue for rate limiting
     private readonly Queue<string> commandQueue = [];
     private long lastCommandTimeMs;
     private const double CommandCooldownMs = 100.0; // 100ms between commands
+    private bool commandReady = true;
 
     // Macro mode for //m multi-line macro support
     private bool macroMode;
     private readonly List<string> macroLines = [];
 
-    // Chat rate limiting
+    // Chat rate limiting (QoLBar style: 1/6s per chat command)
     private float chatQueueTimer;
+    private readonly Queue<string> chatQueue = [];
     private const float ChatSendCooldown = 1.0f / 6.0f;
 
     // Retry item tracking
@@ -40,9 +47,57 @@ public sealed class QCManager : IDisposable {
     private readonly Dictionary<int, bool> previousKeyStates = [];
     private const long KeyRepeatDelayMs = 200;
 
+    // --- Game Window Detection (QoLBar style) ---
+    [DllImport("user32.dll", CharSet = CharSet.Auto, ExactSpelling = true)]
+    private static extern nint GetForegroundWindow();
+    [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+    private static extern int GetWindowThreadProcessId(nint handle, out int processId);
+
+    public static bool IsGameFocused {
+        get {
+            var activatedHandle = GetForegroundWindow();
+            if (activatedHandle == nint.Zero) return false;
+            var procId = Environment.ProcessId;
+            _ = GetWindowThreadProcessId(activatedHandle, out var activeProcId);
+            return activeProcId == procId;
+        }
+    }
+
+    public static bool IsGameTextInputActive {
+        get {
+            unsafe {
+                try {
+                    var uiModule = UIModule.Instance();
+                    if (uiModule == null) return false;
+                    return uiModule->GetRaptureAtkModule()->AtkModule.IsTextInputActive();
+                } catch { return false; }
+            }
+        }
+    }
+
+    public static bool IsMacroRunning {
+        get {
+            unsafe {
+                try {
+                    var uiModule = Framework.Instance()->GetUIModule();
+                    if (uiModule == null) return false;
+                    return uiModule->GetRaptureShellModule()->MacroCurrentLine >= 0;
+                } catch { return false; }
+            }
+        }
+    }
+
+    // QoLBar-style ProcessChatBox delegate for direct command injection
+    [Signature("48 89 5C 24 ?? 48 89 74 24 ?? 57 48 83 EC 20 48 8B F2 48 8B F9 45 84 C9")]
+    public static unsafe delegate* unmanaged<UIModule*, nint, nint, byte, void> ProcessChatBox;
+
+    // QoLBar-style GetCommandHandler for chat command detection
+    [Signature("E8 ?? ?? ?? ?? 66 89 06 66 85 C0")]
+    public static unsafe delegate* unmanaged<RaptureShellModule*, nint, nint, int> GetCommandHandler;
+
     public QCManager(Configuration config, IPluginLog log, ICommandManager commandManager,
         ICondition condition, IClientState clientState, IObjectTable objectTable,
-        IFramework framework, IKeyState keyState) {
+        IFramework framework, IKeyState keyState, IGameInteropProvider gameInterop) {
         this.config = config;
         this.log = log;
         this.commandManager = commandManager;
@@ -51,6 +106,9 @@ public sealed class QCManager : IDisposable {
         this.objectTable = objectTable;
         this.framework = framework;
         this.keyState = keyState;
+
+        // Initialize signature-scanned function pointers (QoLBar style)
+        gameInterop.InitializeFromAttributes(this);
     }
 
     public void Dispose() {
@@ -67,7 +125,14 @@ public sealed class QCManager : IDisposable {
     // Framework update callback
     public void OnFrameworkUpdate() {
         this.chatQueueTimer = Math.Max(0, this.chatQueueTimer - (float)this.framework.UpdateDelta.TotalSeconds);
+        ProcessCommandQueue();
         ProcessKeybinds();
+
+        // Handle retry items
+        if (this.retryItem > 0) {
+            TryUseItem(this.retryItem);
+            this.retryItem = 0;
+        }
     }
 
     public QCBarDefinition AddBar(string name) {
@@ -116,6 +181,12 @@ public sealed class QCManager : IDisposable {
         foreach (var bar in this.config.QCBars) {
             if (bar.ConditionSetId == id) bar.ConditionSetId = null;
         }
+    }
+
+    public void ClearAllData() {
+        this.config.QCBars.Clear();
+        this.config.QCShortcuts.Clear();
+        this.config.QCConditionSets.Clear();
     }
 
     public bool IsBarVisible(QCBarDefinition bar) {
@@ -194,10 +265,13 @@ public sealed class QCManager : IDisposable {
         return EvaluateConditionSet(this.config.QCConditionSets[index]);
     }
 
-    // --- Command Queue System ---
+    // --- Command Queue System (QoLBar-style) ---
 
     public void EnqueueCommand(string command) {
         if (string.IsNullOrWhiteSpace(command)) return;
+        // QoLBar 兼容: 游戏未聚焦时不排队命令
+        if (!IsGameFocused) return;
+
         foreach (var c in command.Split('\n')) {
             var trimmed = c.Trim();
             if (trimmed.Length > 0) {
@@ -209,50 +283,54 @@ public sealed class QCManager : IDisposable {
     public void ProcessCommandQueue() {
         if (this.commandQueue.Count == 0) return;
 
-        // Handle retry items
-        if (this.retryItem > 0) {
-            UseItem(this.retryItem);
-            this.retryItem = 0;
-            return;
-        }
-
-        var now = Environment.TickCount64;
-        if (now < this.lastCommandTimeMs + CommandCooldownMs) return;
-
-        var command = this.commandQueue.Dequeue();
-        this.lastCommandTimeMs = now;
-
-        // Support for "//" prefix: internal commands
-        if (command.StartsWith("//")) {
-            var internalCmd = command[2..].Trim();
-            if (internalCmd.Length > 0) {
-                ProcessInternalCommand(internalCmd);
+        // Handle chat queue (rate-limited chat messages)
+        if (this.chatQueueTimer > 0 && this.chatQueue.Count > 0) {
+            this.chatQueueTimer -= (float)this.framework.UpdateDelta.TotalSeconds;
+            if (this.chatQueueTimer <= 0) {
+                var queued = this.chatQueue.Dequeue();
+                ExecuteCommand(queued, true);
             }
-            return;
         }
 
-        // Support for "/" prefix: execute as game command
-        if (command.StartsWith("/")) {
-            ExecuteGameCommand(command);
-            return;
-        }
-
-        // Support for "!" prefix: alternate command prefix
-        if (command.StartsWith("!")) {
-            ExecuteGameCommand(command[1..]);
-            return;
-        }
-
-        // Fallback: send as chat text
-        SendChatMessage(command);
+        // Process command queue
+        if (!this.commandReady) return;
+        RunCommandQueue();
     }
 
-    private void ProcessInternalCommand(string command) {
-        if (command.Length == 0) return;
+    private void RunCommandQueue() {
+        // QoLBar 兼容: 宏运行时跳过命令队列，避免冲突
+        if (IsMacroRunning) return;
 
-        // Parse: command letter + optional space + arguments
-        var cmdChar = command[0];
-        var args = command.Length > 1 ? command[1..].Trim() : string.Empty;
+        while (this.commandQueue.Count > 0 && this.commandReady) {
+            this.commandReady = false;
+            var command = this.commandQueue.Dequeue();
+
+            if (command.StartsWith("//")) {
+                // Internal command handling (QoLBar style)
+                var internalCmd = command[2..];
+                RunInternalCommand(internalCmd);
+            } else if (command.StartsWith("/")) {
+                // Game command: check if it's a chat send command
+                var isChat = IsChatSendCommand(command);
+                ExecuteCommand(command, isChat);
+            } else if (command.StartsWith("!")) {
+                // Alternate prefix
+                ExecuteCommand(command[1..], false);
+            } else {
+                // Plain text: send as chat
+                ExecuteCommand(command, true);
+            }
+        }
+    }
+
+    private void RunInternalCommand(string cmd) {
+        if (cmd.Length == 0) {
+            this.commandReady = true;
+            return;
+        }
+
+        var cmdChar = cmd[0];
+        var args = cmd.Length > 1 ? cmd[1..].Trim() : string.Empty;
 
         switch (cmdChar) {
             case 'm': // //m<index> - Execute macro, or //m to enter/exit macro mode
@@ -261,12 +339,12 @@ public sealed class QCManager : IDisposable {
             case 'i': // //i<id_or_name> - Use item
                 HandleItemCommand(args);
                 break;
-            case 'g': // //g<gearset#> - Equip gearset, or //gearset <#> 
+            case 'g': // //g<gearset#> - Equip gearset
                 if (args.Length > 0) {
                     ExecuteGameCommand($"/gearset change {args}");
                 }
                 break;
-            case 't': // //t<place> - Teleport, or //tp <place>
+            case 't': // //t<place> - Teleport
                 if (args.Length > 0) {
                     ExecuteGameCommand($"/tp {args}");
                 }
@@ -276,12 +354,12 @@ public sealed class QCManager : IDisposable {
                     ExecuteGameCommand($"/echo {args}");
                 }
                 break;
-            case 'w': // //w<marker> <id> - Waymark, or //waymark <id>
+            case 'w': // //w<marker> <id> - Waymark
                 if (args.Length > 0) {
                     ExecuteGameCommand($"/waymark {args}");
                 }
                 break;
-            case 'f': // //f<name> - Follow target, or //follow
+            case 'f': // //f<name> - Follow target
                 if (args.Length > 0) {
                     ExecuteGameCommand($"/follow {args}");
                 } else {
@@ -299,17 +377,110 @@ public sealed class QCManager : IDisposable {
                 ExecuteGameCommand("/lock");
                 break;
             case ' ': // //  - comment, do nothing
+                this.commandReady = true;
                 break;
             default:
-                // Unrecognized internal command, send as-is
-                ExecuteGameCommand(command);
+                // QoLBar 兼容: 未识别的内部命令, 补上 / 前缀作为游戏命令执行
+                ExecuteGameCommand($"/{cmd}");
                 break;
         }
     }
 
+    // QoLBar-style chat command detection using GetCommandHandler signature
+    private unsafe bool IsChatSendCommand(string command) {
+        var split = command.IndexOf(' ');
+        if (split < 1) return split == 0 || !command.StartsWith("/");
+
+        // Use signature-scanned GetCommandHandler if available
+        if (GetCommandHandler != null) {
+            var handler = 0;
+            var stringPtr = nint.Zero;
+            try {
+                var prefix = command[..split];
+                var uiModule = Framework.Instance()->GetUIModule();
+                if (uiModule == null) return false;
+                var shellModule = uiModule->GetRaptureShellModule();
+                if (shellModule == null) return false;
+
+                stringPtr = Marshal.AllocHGlobal(QCUtf8String.Size);
+                using var str = new QCUtf8String(stringPtr, prefix);
+                Marshal.StructureToPtr(str, stringPtr, false);
+                handler = GetCommandHandler(shellModule, stringPtr, nint.Zero);
+            } catch { }
+            Marshal.FreeHGlobal(stringPtr);
+
+            // Chat send commands have specific handler IDs
+            return handler switch {
+                8 or (>= 13 and <= 20) or (>= 91 and <= 119 and not 116) => true,
+                _ => false,
+            };
+        }
+
+        // Fallback: simple heuristic
+        return false;
+    }
+
+    private unsafe void ExecuteCommand(string command, bool isChat) {
+        if (string.IsNullOrWhiteSpace(command)) {
+            this.commandReady = true;
+            return;
+        }
+
+        // QoLBar 兼容: 文本输入激活时跳过命令注入，避免干扰用户输入
+        if (IsGameTextInputActive) {
+            this.commandReady = true;
+            return;
+        }
+
+        // Use QoLBar-style ProcessChatBox if available, otherwise fallback
+        if (ProcessChatBox != null) {
+            var stringPtr = nint.Zero;
+            try {
+                var uiModule = UIModule.Instance();
+                if (uiModule == null) {
+                    // Fallback
+                    ExecuteGameCommand(command);
+                    return;
+                }
+
+                stringPtr = Marshal.AllocHGlobal(QCUtf8String.Size);
+                using var str = new QCUtf8String(stringPtr, command);
+                Marshal.StructureToPtr(str, stringPtr, false);
+
+                if (isChat) {
+                    if (this.chatQueueTimer <= 0) {
+                        this.chatQueueTimer = ChatSendCooldown;
+                        ProcessChatBox(uiModule, stringPtr, nint.Zero, 0);
+                    } else {
+                        this.chatQueue.Enqueue(command);
+                    }
+                } else {
+                    ProcessChatBox(uiModule, stringPtr, nint.Zero, 0);
+                }
+            } catch {
+                // Fallback
+                ExecuteGameCommand(command);
+            } finally {
+                Marshal.FreeHGlobal(stringPtr);
+            }
+        } else {
+            // Fallback to ICommandManager
+            if (isChat && this.chatQueueTimer > 0) {
+                this.chatQueue.Enqueue(command);
+            } else {
+                if (isChat) this.chatQueueTimer = ChatSendCooldown;
+                this.commandManager.ProcessCommand(command);
+            }
+        }
+
+        // Allow next command to be processed (after cooldown)
+        this.lastCommandTimeMs = Environment.TickCount64;
+        this.commandReady = true;
+    }
+
     private void HandleMacroCommand(string arg) {
         if (string.IsNullOrEmpty(arg)) {
-            // Toggle macro mode
+            // Toggle macro mode (QoLBar style: //m without args enters/exits macro mode)
             if (this.macroMode) {
                 // Exit macro mode and execute accumulated lines
                 this.macroMode = false;
@@ -319,15 +490,16 @@ public sealed class QCManager : IDisposable {
                 this.macroMode = true;
                 this.macroLines.Clear();
             }
+            this.commandReady = true;
             return;
         }
 
         if (int.TryParse(arg, out var macroIndex) && macroIndex is >= 0 and < 200) {
-            // Execute a specific macro by index
+            // Execute a specific macro by index (QoLBar style: //m0 = individual #0, //m100 = shared #0)
             ExecuteMacroByIndex(macroIndex);
         } else {
             // Unknown macro command
-            SendChatMessage(arg);
+            EnqueueCommand($"/{arg}");
         }
     }
 
@@ -359,42 +531,45 @@ public sealed class QCManager : IDisposable {
         } catch {
             // Fallback
         }
+        this.commandReady = true;
     }
 
     private void ExecuteMacroLines() {
-        if (this.macroLines.Count == 0) return;
+        if (this.macroLines.Count == 0) {
+            this.commandReady = true;
+            return;
+        }
 
         // Execute each line as a command
         foreach (var line in this.macroLines) {
-            this.commandQueue.Enqueue(line);
+            EnqueueCommand(line);
         }
         this.macroLines.Clear();
+        this.commandReady = true;
     }
 
     private void HandleItemCommand(string arg) {
         if (string.IsNullOrEmpty(arg)) return;
 
         if (uint.TryParse(arg, out var itemId)) {
-            UseItem(itemId);
+            TryUseItem(itemId);
         } else {
             // Try to use item by name (simplified - raw use)
-            SendChatMessage($"/item \"{arg}\"");
+            EnqueueCommand($"/itemsearch {arg}");
         }
     }
 
-    private unsafe void UseItem(uint itemId) {
+    private unsafe void TryUseItem(uint itemId) {
         if (itemId == 0) return;
 
-        // Use ActionManager.UseAction - the safe Dalamud-compatible way
-        // This avoids raw AgentInventoryContext calls that could crash the game
         try {
             var actionManager = ActionManager.Instance();
             if (actionManager is null) {
-                SendChatMessage($"/itemsearch {itemId}");
+                EnqueueCommand($"/itemsearch {itemId}");
                 return;
             }
 
-            // Check if the action ID is valid for this item
+            // Check if the action ID is valid for this item (QoLBar style retry)
             var actionId = ActionManager.GetSpellIdForAction(ActionType.Item, itemId);
             if (actionId == 0) {
                 // Retry once (item may not be loaded yet)
@@ -406,29 +581,66 @@ public sealed class QCManager : IDisposable {
             actionManager->UseAction(ActionType.Item, itemId);
         } catch {
             // Fallback to command
-            SendChatMessage($"/itemsearch {itemId}");
+            EnqueueCommand($"/itemsearch {itemId}");
         }
     }
 
     private void ExecuteGameCommand(string command) {
-        this.commandManager.ProcessCommand(command);
-    }
-
-    private void SendChatMessage(string message) {
-        if (this.chatQueueTimer > 0) {
-            // Queue the message for later
-            this.commandQueue.Enqueue(message);
-            return;
+        var containsNonAscii = false;
+        foreach (var c in command) {
+            if (c > 127) { containsNonAscii = true; break; }
         }
 
-        this.chatQueueTimer = ChatSendCooldown;
-        this.commandManager.ProcessCommand(message);
+        if (containsNonAscii) {
+            ExecuteNativeCommand(command);
+        } else {
+            this.commandManager.ProcessCommand(command);
+        }
+    }
+
+    private unsafe void ExecuteNativeCommand(string command) {
+        try {
+            // Use QoLBar-style ProcessChatBox delegate if available
+            if (ProcessChatBox != null) {
+                var uiModule = UIModule.Instance();
+                if (uiModule == null) {
+                    this.commandManager.ProcessCommand(command);
+                    return;
+                }
+
+                var stringPtr = nint.Zero;
+                try {
+                    stringPtr = Marshal.AllocHGlobal(QCUtf8String.Size);
+                    using var str = new QCUtf8String(stringPtr, command);
+                    Marshal.StructureToPtr(str, stringPtr, false);
+                    ProcessChatBox(uiModule, stringPtr, nint.Zero, 0);
+                } finally {
+                    Marshal.FreeHGlobal(stringPtr);
+                }
+                return;
+            }
+
+            // Fallback: use ProcessChatBoxEntry
+            var uiModule2 = UIModule.Instance();
+            if (uiModule2 == null) {
+                this.commandManager.ProcessCommand(command);
+                return;
+            }
+
+            var utf8Str = new Utf8String(command);
+            uiModule2->ProcessChatBoxEntry(&utf8Str, 0, true);
+            utf8Str.Dtor();
+        } catch {
+            try {
+                this.commandManager.ProcessCommand(command);
+            } catch {
+                // 忽略最终错误
+            }
+        }
     }
 
     public void ExecuteShortcut(QCShortcutDefinition shortcut) {
         if (shortcut.Type == QCShortcutType.Spacer) return;
-
-        if (shortcut.IsCategory) return; // Categories are handled by UI interaction
 
         var commands = GetCommandLines(shortcut);
         if (commands.Count == 0) return;
@@ -459,20 +671,33 @@ public sealed class QCManager : IDisposable {
 
     private static List<string> GetCommandLines(QCShortcutDefinition shortcut) {
         if (string.IsNullOrWhiteSpace(shortcut.Command)) return [];
-        return shortcut.Command
+        var lines = shortcut.Command
             .Replace("\r\n", "\n")
             .Replace('\r', '\n')
             .Split('\n')
             .Where(line => !string.IsNullOrWhiteSpace(line))
             .Select(line => line.Trim())
             .ToList();
+
+        // 处理 QoLBar 风格的 //m 多行宏标记：移除首尾的 //m 标记行
+        if (lines.Count >= 2 && lines[0] == "//m" && lines[^1] == "//m") {
+            lines = lines[1..^1];
+        } else if (lines.Count >= 1 && lines[0] == "//m") {
+            // 只有开头的 //m 标记，没有结尾标记
+            lines = lines[1..];
+        }
+
+        return lines;
     }
 
     // --- Keybind Processing (using IKeyState for Dalamud compliance) ---
 
     public void ProcessKeybinds() {
+        // QoLBar 兼容: 游戏未聚焦或文本输入时跳过热键处理
+        if (!IsGameFocused || IsGameTextInputActive) return;
+
         foreach (var shortcut in this.config.QCShortcuts.Values) {
-            if (shortcut.Hotkey == 0 || shortcut.Type == QCShortcutType.Spacer) continue;
+            if (shortcut.Hotkey == 0 || shortcut.Type == QCShortcutType.Spacer || shortcut.IsCategory) continue;
             if (IsVkKeyPressed(shortcut.Hotkey)) {
                 if (!shortcut.KeyPassthrough) {
                     ExecuteShortcut(shortcut);

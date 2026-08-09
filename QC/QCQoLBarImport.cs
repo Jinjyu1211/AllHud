@@ -250,7 +250,8 @@ public static class QCQoLBarImport {
         bar.Alignment = qolBar.Alignment;
         bar.VisibilityMode = qolBar.Visibility;
         bar.Hint = qolBar.Hint;
-        bar.ButtonWidth = qolBar.ButtonWidth;
+        // QoLBar 兼容: bW: 0 表示 auto (100% 宽度)
+        bar.ButtonWidth = qolBar.ButtonWidth > 0 ? qolBar.ButtonWidth : 100;
         bar.ClickThrough = qolBar.ClickThrough;
         bar.LockedPosition = qolBar.LockedPosition;
         bar.Columns = qolBar.Columns;
@@ -260,7 +261,13 @@ public static class QCQoLBarImport {
         bar.NoBackground = qolBar.NoBackground;
 
         if (qolBar.Position is { Length: >= 2 }) {
-            bar.CustomPosition = new System.Numerics.Vector2(qolBar.Position[0], qolBar.Position[1]);
+            // QoLBar 使用归一化坐标 (0-1)，转换为像素坐标（默认 1920x1080，用户可后续调整）
+            const float defaultScreenW = 1920f;
+            const float defaultScreenH = 1080f;
+            bar.CustomPosition = new System.Numerics.Vector2(
+                qolBar.Position[0] * defaultScreenW,
+                qolBar.Position[1] * defaultScreenH
+            );
         }
 
         if (qolBar.Spacing is { Length: >= 2 }) {
@@ -286,9 +293,26 @@ public static class QCQoLBarImport {
     }
 
     private static QCShortcutDefinition? ImportShortcutData(QCManager manager, QoLShCfg qolSh) {
-        if (string.IsNullOrWhiteSpace(qolSh.Name)) return null;
+        // QoLBar 兼容: Spacer (t: 2) 使用生成的名称, 空名称也允许导入
+        var isSpacer = qolSh.Type == 2;
+        var rawName = qolSh.Name?.Trim() ?? string.Empty;
 
-        var shortcut = manager.AddShortcut(qolSh.Name.Trim());
+        // 解析 ::IconID##Name 格式，提取图标 ID 和清洗名称
+        var (cleanName, iconId) = ParseIconName(rawName);
+
+        // Spacer 或有图标 ID 但无名称的条目, 使用生成名称
+        if (isSpacer || string.IsNullOrWhiteSpace(cleanName)) {
+            if (isSpacer) {
+                cleanName = string.IsNullOrWhiteSpace(cleanName) ? "——" : cleanName;
+            } else if (string.IsNullOrWhiteSpace(cleanName) && iconId > 0) {
+                // 如 ::81 只有图标 ID 没有名称
+                cleanName = $"#{iconId}";
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(cleanName)) return null;
+        var shortcut = manager.AddShortcut(cleanName);
+        shortcut.IconId = iconId;
         shortcut.Type = (QCShortcutType)qolSh.Type;
         shortcut.IsCategory = qolSh.Type == 1;
         shortcut.Command = qolSh.Command ?? string.Empty;
@@ -477,5 +501,51 @@ public static class QCQoLBarImport {
             var trimmed = text.Trim();
             return trimmed.StartsWith('{') || trimmed.StartsWith('[');
         }
+    }
+
+    /// <summary>
+    /// 解析 QoLBar 的 ::IconID##Name 格式，提取图标 ID 和清洗名称。
+    /// 格式：::IconID##DisplayName 或 ::IconID##Name (无 ## 时)
+    /// 也支持 hIconID##Name 格式（带 h 前缀的隐藏图标）
+    /// </summary>
+    private static (string name, uint iconId) ParseIconName(string raw) {
+        if (string.IsNullOrWhiteSpace(raw))
+            return (raw, 0);
+
+        // 匹配 ::IconID##Name 或 ::IconID 格式
+        // 也处理 ::IconID##Name##Extra 等复杂格式
+        if (raw.StartsWith("::")) {
+            var withoutPrefix = raw[2..];
+            var hashIdx = withoutPrefix.IndexOf("##", StringComparison.Ordinal);
+            if (hashIdx > 0 && uint.TryParse(withoutPrefix[..hashIdx], out var parsedId)) {
+                var name = withoutPrefix[(hashIdx + 2)..];
+                // 清理可能残留的 ## 分段
+                var cleanEnd = name.IndexOf("##", StringComparison.Ordinal);
+                if (cleanEnd > 0) name = name[..cleanEnd];
+                return (name.Trim(), parsedId);
+            }
+            // 处理 ::IconID 格式（无 ##Name 部分，如 ::81）
+            if (uint.TryParse(withoutPrefix, out var iconOnlyId)) {
+                return (string.Empty, iconOnlyId);
+            }
+            // 有 :: 前缀但无法解析为 IconID，去掉前缀作为名称
+            return (withoutPrefix, 0);
+        }
+
+        // 处理 hIconID##Name 格式（h 前缀 = 隐藏图标）
+        if (raw.StartsWith('h') && raw.Length > 1) {
+            var afterH = raw[1..];
+            if (uint.TryParse(afterH.AsSpan(0, Math.Min(afterH.Length, 10)), out _)) {
+                var hashIdx = afterH.IndexOf("##", StringComparison.Ordinal);
+                if (hashIdx > 0 && uint.TryParse(afterH[..hashIdx], out var hid)) {
+                    var name = afterH[(hashIdx + 2)..];
+                    var cleanEnd = name.IndexOf("##", StringComparison.Ordinal);
+                    if (cleanEnd > 0) name = name[..cleanEnd];
+                    return (name.Trim(), hid);
+                }
+            }
+        }
+
+        return (raw, 0);
     }
 }

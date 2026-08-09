@@ -40,10 +40,13 @@ public sealed class QCShortcutDefinition {
     public float IconZoom { get; set; } = 1.0f;
     public float IconRotation { get; set; } // Rotation in radians
     public Vector2 IconOffset { get; set; } = Vector2.Zero;
+    public bool IconGrayscale { get; set; } // Grayscale filter
+    public bool IconFrame { get; set; } // Show QoLBar-style frame border
+    public bool IconFlipped { get; set; } // Horizontal flip
 
     // Cooldown display
     public uint CooldownActionId { get; set; }
-    public int CooldownStyle { get; set; } // 0=icon overlay, 1=text only
+    public int CooldownStyle { get; set; } // 0=icon overlay, 1=text only, 2=QoLBar spritesheet
 
     // Category settings
     public int CategoryWidth { get; set; } = 140;

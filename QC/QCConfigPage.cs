@@ -26,7 +26,7 @@ public sealed class QCConfigPage {
         if (!this.IsOpen) return;
 
         ImGui.SetNextWindowSize(new Vector2(600.0f, 400.0f), ImGuiCond.FirstUseEver);
-        if (!ImGui.Begin("QC \u5FEB\u6377\u680F\u914D\u7F6E", ref this.IsOpen, ImGuiWindowFlags.NoScrollbar)) {
+        if (!ImGui.Begin("QC 快捷栏配置", ref this.IsOpen, ImGuiWindowFlags.NoScrollbar)) {
             ImGui.End();
             return;
         }
@@ -48,7 +48,7 @@ public sealed class QCConfigPage {
     }
 
     private void DrawTabs() {
-        var tabNames = new[] { "\u5FEB\u6377\u680F", "\u5FEB\u6377\u65B9\u5F0F", "\u6761\u4EF6\u96C6", "\u5BFC\u5165\u5BFC\u51FA" };
+        var tabNames = new[] { "快捷栏", "快捷方式", "条件集", "导入导出" };
         var buttonWidth = 120.0f;
         var buttonHeight = 30.0f;
 
@@ -73,100 +73,99 @@ public sealed class QCConfigPage {
     }
 
     private void DrawBarList() {
-        ImGui.TextDisabled("\u5FEB\u6377\u680F\u5217\u8868\uFF08\u5F85\u5B9E\u73B0\uFF09");
+        ImGui.TextDisabled("快捷栏列表（待实现）");
         foreach (var bar in this.manager.Bars) {
-            ImGui.BulletText($"{bar.Name} ({(bar.Enabled ? "\u542F\u7528" : "\u7981\u7528")})");
+            ImGui.BulletText($"{bar.Name} ({(bar.Enabled ? "启用" : "禁用")})");
         }
     }
 
     private void DrawShortcutList() {
-        ImGui.TextDisabled("\u5FEB\u6377\u65B9\u5F0F\u5217\u8868\uFF08\u5F85\u5B9E\u73B0\uFF09");
+        ImGui.TextDisabled("快捷方式列表（待实现）");
         foreach (var kvp in this.manager.Shortcuts) {
-            var name = string.IsNullOrWhiteSpace(kvp.Value.Name) ? "(\u65E0\u540D\u79F0)" : kvp.Value.Name;
+            var name = string.IsNullOrWhiteSpace(kvp.Value.Name) ? "(无名称)" : kvp.Value.Name;
             ImGui.BulletText($"{kvp.Key}: {name}");
         }
     }
 
     private void DrawConditionSets() {
-        ImGui.TextDisabled("\u6761\u4EF6\u96C6\u5217\u8868\uFF08\u5F85\u5B9E\u73B0\uFF09");
+        ImGui.TextDisabled("条件集列表（待实现）");
     }
 
     private void DrawImportExport() {
-        ImGui.TextDisabled("\u5BFC\u5165 QoLBar \u914D\u7F6E");
+        ImGui.TextDisabled("导入 QoLBar 配置");
         ImGui.Spacing();
 
-        if (ImGui.Button("\u4ECE\u526A\u8D34\u677F\u5BFC\u5165 QoLBar \u914D\u7F6E", new Vector2(260.0f, 36.0f))) {
+        if (ImGui.Button("从剪贴板导入 QoLBar 配置", new Vector2(260.0f, 36.0f))) {
             var clipboardText = ImGui.GetClipboardText();
             if (!string.IsNullOrWhiteSpace(clipboardText)) {
                 if (QCQoLBarImport.TryImportFromText(this.manager, clipboardText)) {
-                    this.importResultMessage = "\u5BFC\u5165\u6210\u529F\uFF01\u8BF7\u67E5\u770B\u5FEB\u6377\u680F\u548C\u5FEB\u6377\u65B9\u5F0F\u5217\u8868\u3002";
+                    this.importResultMessage = "导入成功！请查看快捷栏和快捷方式列表。";
                 } else {
-                    this.importResultMessage = "\u5BFC\u5165\u5931\u8D25\uFF0C\u526A\u8D34\u677F\u5185\u5BB9\u4E0D\u662F\u6709\u6548\u7684 QoLBar \u914D\u7F6E\u683C\u5F0F\u3002";
+                    this.importResultMessage = "导入失败，剪贴板内容不是有效的 QoLBar 配置格式。";
                 }
                 this.importResultTime = ImGui.GetTime();
             }
         }
 
         if (ImGui.IsItemHovered()) {
-            ImGui.SetTooltip("\u5148\u5728 QoLBar \u4E2D\u590D\u5236\u914D\u7F6E\uFF0C\u7136\u540E\u70B9\u51FB\u6B64\u6309\u94AE\u5BFC\u5165\u3002");
+            ImGui.SetTooltip("先在 QoLBar 中复制配置，然后点击此按钮导入。");
         }
 
         ImGui.Spacing();
 
-        if (ImGui.Button("\u68C0\u6D4B\u683C\u5F0F", new Vector2(120.0f, 24.0f))) {
+        if (ImGui.Button("检测格式", new Vector2(120.0f, 24.0f))) {
             var clipboardText = ImGui.GetClipboardText();
             if (!string.IsNullOrWhiteSpace(clipboardText)) {
                 var format = QCQoLBarImport.DetectFormat(clipboardText);
-                this.importResultMessage = $"\u68C0\u6D4B\u5230\u683C\u5F0F: {format}";
+                this.importResultMessage = $"检测到格式: {format}";
                 this.importResultTime = ImGui.GetTime();
             }
         }
 
         if (ImGui.IsItemHovered()) {
-            ImGui.SetTooltip("\u68C0\u6D4B\u526A\u8D34\u677F\u4E2D\u7684\u5185\u5BB9\u683C\u5F0F\u3002");
+            ImGui.SetTooltip("检测剪贴板中的内容格式。");
         }
 
-        // \u5BFC\u5165\u7ED3\u679C\u53CD\u9988（\u663E\u793A 5 \u79D2\u949F\uFF09
+        // 导入结果反馈（显示 5 秒）
         if (this.importResultMessage != null && ImGui.GetTime() - this.importResultTime < 5.0) {
             ImGui.Spacing();
             ImGui.TextColored(new Vector4(0.25f, 0.50f, 0.75f, 1.0f), this.importResultMessage);
         }
-
         ImGui.Spacing();
         ImGui.Separator();
         ImGui.Spacing();
 
-        // \u4E00\u952E\u5220\u9664\u6240\u6709\u5BFC\u5165\u5185\u5BB9
-        if (ImGui.Button("\u4E00\u952E\u5220\u9664\u6240\u6709\u5BFC\u5165\u5185\u5BB9", new Vector2(260.0f, 36.0f))) {
+        // 一键删除所有导入内容
+        if (ImGui.Button("一键删除所有导入内容", new Vector2(260.0f, 36.0f))) {
             this.showClearConfirm = true;
         }
 
         if (ImGui.IsItemHovered()) {
-            ImGui.SetTooltip("\u6E05\u7A7A\u6240\u6709\u5FEB\u6377\u680F\u3001\u5FEB\u6377\u65B9\u5F0F\u548C\u6761\u4EF6\u96C6\u6570\u636E\uFF08\u4E0D\u53EF\u6062\u590D\uFF09");
+            ImGui.SetTooltip("清空所有快捷栏、快捷方式和条件集数据（不可恢复）");
         }
 
-        // \u786E\u8BA4\u5F39\u7A97
+        // 确认弹窗
         if (this.showClearConfirm) {
-            ImGui.OpenPopup("\u786E\u8BA4\u5220\u9664");
+            ImGui.OpenPopup("确认删除");
         }
 
-        if (ImGui.BeginPopupModal("\u786E\u8BA4\u5220\u9664", ref this.showClearConfirm, ImGuiWindowFlags.AlwaysAutoResize)) {
-            ImGui.TextDisabled("\u786E\u5B9A\u8981\u5220\u9664\u6240\u6709\u5BFC\u5165\u5185\u5BB9\u5417\uFF1F");
-            ImGui.TextDisabled("\u6B64\u64CD\u4F5C\u5C06\u6E05\u7A7A\u6240\u6709\u5FEB\u6377\u680F\u3001\u5FEB\u6377\u65B9\u5F0F\u548C\u6761\u4EF6\u96C6\uFF0C\u4E14\u4E0D\u53EF\u6062\u590D\u3002");
+        if (ImGui.BeginPopupModal("确认删除", ref this.showClearConfirm, ImGuiWindowFlags.AlwaysAutoResize)) {
+            ImGui.TextDisabled("确定要删除所有导入内容吗？");
+            ImGui.TextDisabled("此操作将清空所有快捷栏、快捷方式和条件集，且不可恢复。");
             ImGui.Spacing();
             ImGui.Separator();
             ImGui.Spacing();
 
-            if (ImGui.Button("\u786E\u8BA4\u5220\u9664", new Vector2(120.0f, 0.0f))) {
+            if (ImGui.Button("确认删除", new Vector2(120.0f, 0.0f))) {
                 this.manager.ClearAllData();
                 this.saveConfig();
-                this.importResultMessage = "\u5DF2\u6E05\u7A7A\u6240\u6709\u5BFC\u5165\u5185\u5BB9\u3002";
+                this.importResultMessage = "已清空所有导入内容。";
                 this.importResultTime = ImGui.GetTime();
                 this.showClearConfirm = false;
                 ImGui.CloseCurrentPopup();
             }
             ImGui.SameLine();
-            if (ImGui.Button("\u53D6\u6D88", new Vector2(120.0f, 0.0f))) {
+            if (ImGui.Button("取消", new Vector2(120.0f, 0.0f))) {
                 this.showClearConfirm = false;
                 ImGui.CloseCurrentPopup();
             }

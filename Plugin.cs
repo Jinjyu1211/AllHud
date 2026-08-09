@@ -73,7 +73,7 @@ public sealed class AllHud : IDalamudPlugin {
 
         this.log.Information("AllHud initializing: registering /qc command.");
         commandManager.AddHandler("/qc", new CommandInfo(OnQcCommand) {
-            HelpMessage = "\u6253\u5F00QC\u5FEB\u6377\u680F\u914D\u7F6E\u754C\u9762\u3002",
+            HelpMessage = "打开QC快捷栏配置界面。",
         });
 
         this.log.Information("AllHud initializing: creating config window.");
@@ -99,6 +99,8 @@ public sealed class AllHud : IDalamudPlugin {
         this.overlayRenderer?.Dispose();
         this.worldMarkerSystem?.Dispose();
         this.qcRenderer?.Dispose();
+        this.qcManager?.Dispose();
+        this.combatState?.Dispose();
     }
 
     private void SaveConfig() {

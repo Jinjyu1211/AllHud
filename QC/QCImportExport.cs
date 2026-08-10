@@ -179,7 +179,7 @@ public static class QCImportExport {
             bar.Scale = float.Parse(GetValue(data, "Scale", "1"));
             bar.Opacity = float.Parse(GetValue(data, "Opacity", "1"));
             bar.FontScale = float.Parse(GetValue(data, "FontScale", "1"));
-            bar.ButtonWidth = int.Parse(GetValue(data, "ButtonWidth", "100"));
+            bar.ButtonWidth = Math.Clamp(int.Parse(GetValue(data, "ButtonWidth", "100")), 10, 200);
             bar.Columns = int.Parse(GetValue(data, "Columns", "0"));
             bar.Spacing = new System.Numerics.Vector2(
                 float.Parse(GetValue(data, "SpacingX", "4")),

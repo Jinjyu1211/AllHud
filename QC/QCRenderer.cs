@@ -1,9 +1,8 @@
+using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Textures.TextureWraps;
 using Dalamud.Interface.Textures;
-using Dalamud.Interface.Utility;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
-using Dalamud.Bindings.ImGui;
 using System.Numerics;
 
 namespace AllHud;
@@ -12,6 +11,8 @@ public sealed class QCRenderer : IDisposable {
     private readonly QCManager manager;
     private readonly Configuration config;
     private readonly ITextureProvider textureProvider;
+    private readonly IDalamudPluginInterface pluginInterface;
+    private readonly IPluginLog log;
     private readonly Dictionary<uint, IDalamudTextureWrap?> iconCache = [];
     // Cached path buffer for pie wedge drawing to avoid per-frame allocation
     private Vector2[]? pieWedgePath;
@@ -20,36 +21,25 @@ public sealed class QCRenderer : IDisposable {
     // Slide animation tracking
     private readonly Dictionary<string, SlideAnimation> barAnimations = [];
 
-    // Click animation tracking (QoLBar-style: expanding circle on click)
-    private readonly Dictionary<string, ClickAnimation> clickAnimations = [];
-    private sealed class ClickAnimation {
-        public float Time;
-        public bool Active;
-    }
-
     private sealed class SlideAnimation {
         public double Progress; // 0.0 = hidden, 1.0 = fully visible
         public bool IsHovered;
         public double HoverTimer;
     }
 
-    public QCRenderer(QCManager manager, Configuration config, ITextureProvider textureProvider,
-        IDalamudPluginInterface pluginInterface) {
+    public QCRenderer(QCManager manager, Configuration config, ITextureProvider textureProvider, IDalamudPluginInterface pluginInterface, IPluginLog log) {
         this.manager = manager;
         this.config = config;
         this.textureProvider = textureProvider;
+        this.pluginInterface = pluginInterface;
+        this.log = log;
     }
 
     public void Dispose() {
         ClearIconCache();
         this.colorCache.Clear();
         this.barAnimations.Clear();
-        this.clickAnimations.Clear();
     }
-
-    // QoLBar-style: RotateVector helper
-    private static Vector2 RotateVector(Vector2 v, float aCos, float aSin) =>
-        new(v.X * aCos - v.Y * aSin, v.X * aSin + v.Y * aCos);
 
     public void DrawAllBars() {
         var displaySize = ImGui.GetIO().DisplaySize;
@@ -68,7 +58,11 @@ public sealed class QCRenderer : IDisposable {
                 continue;
             }
 
-            DrawBar(bar, shortcuts, index, displaySize);
+            try {
+                DrawBar(bar, shortcuts, index, displaySize);
+            } catch (Exception ex) {
+                this.log.Error(ex, $"QC DrawBar failed for bar '{bar.Name}' (index {index})");
+            }
         }
     }
 
@@ -85,7 +79,8 @@ public sealed class QCRenderer : IDisposable {
     private void DrawBar(QCBarDefinition bar, List<QCShortcutDefinition> shortcuts, int index, Vector2 displaySize) {
         var scale = Math.Clamp(bar.Scale, 0.4f, 2.0f);
         var opacity = Math.Clamp(bar.Opacity, 0.15f, 1.0f);
-        var buttonSize = MathF.Max(1.0f, MathF.Round(44.0f * scale * (bar.ButtonWidth / 100.0f)));
+        var buttonSize = MathF.Round(44.0f * scale * (bar.ButtonWidth / 100.0f));
+        buttonSize = Math.Max(buttonSize, 1.0f);
         var spacing = bar.Spacing;
 
         var columns = bar.Columns > 0 ? bar.Columns : (bar.Horizontal ? shortcuts.Count : 1);
@@ -169,30 +164,21 @@ public sealed class QCRenderer : IDisposable {
             var hovered = ImGui.IsItemHovered();
             var active = ImGui.IsItemActive();
 
-            DrawShortcutButton(drawList, buttonMin, buttonMax, shortcut, hovered, active, finalOpacity, scale, id);
+            DrawShortcutButton(drawList, buttonMin, buttonMax, shortcut, hovered, active, finalOpacity, scale);
+
+            // Cooldown overlay
+            if (shortcut.CooldownActionId != 0) {
+                DrawCooldownOverlay(drawList, buttonMin, buttonMax, shortcut, scale);
+            }
 
             if (hovered && !string.IsNullOrWhiteSpace(shortcut.Tooltip)) {
                 ImGui.SetTooltip(shortcut.Tooltip);
             }
 
-            // QoLBar 兼容: Spacer 类型的按钮不接受点击
-            if (shortcut.Type == QCShortcutType.Spacer) {
-                // 空操作 - Spacer 仅用于占位
-            } else if (ImGui.IsItemClicked(ImGuiMouseButton.Left)) {
+            if (ImGui.IsItemClicked(ImGuiMouseButton.Left)) {
                 if (shortcut.IsCategory) {
-                    // QoLBar 兼容: 如果有命令的分类,点击时先执行命令再打开弹出菜单
-                    if (!string.IsNullOrWhiteSpace(shortcut.Command)) {
-                        this.manager.ExecuteShortcut(shortcut);
-                    }
                     ImGui.OpenPopup($"QC_cat_popup_{index}_{i}");
                 } else {
-                    // QoLBar-style: trigger click animation
-                    if (this.clickAnimations.TryGetValue(id, out var clickAnim)) {
-                        clickAnim.Active = true;
-                        clickAnim.Time = 0;
-                    } else {
-                        this.clickAnimations[id] = new ClickAnimation { Active = true, Time = 0 };
-                    }
                     this.manager.ExecuteShortcut(shortcut);
                 }
             }
@@ -227,7 +213,7 @@ public sealed class QCRenderer : IDisposable {
             ImGui.GetColorU32(new Vector4(0.94f, 0.58f, 0.74f, opacity * 0.82f)), rounding, ImDrawFlags.None, 1.0f * scale);
     }
 
-    private void DrawShortcutButton(ImDrawListPtr drawList, Vector2 min, Vector2 max, QCShortcutDefinition shortcut, bool hovered, bool active, float opacity, float scale, string id) {
+    private void DrawShortcutButton(ImDrawListPtr drawList, Vector2 min, Vector2 max, QCShortcutDefinition shortcut, bool hovered, bool active, float opacity, float scale) {
         var innerPad = 3.0f * scale;
         var innerMin = min + new Vector2(innerPad, innerPad);
         var innerMax = max - new Vector2(innerPad, innerPad);
@@ -261,12 +247,18 @@ public sealed class QCRenderer : IDisposable {
         // Icon or text
         if (shortcut.IconId != 0) {
             var iconPad = 4.0f * scale;
-            var iconMin = innerMin + new Vector2(iconPad, iconPad);
-            var iconMax = innerMax - new Vector2(iconPad, iconPad);
-            var iconSize = iconMax - iconMin;
+            var iconMin = innerMin + new Vector2(iconPad, iconPad) + shortcut.IconOffset * scale;
+            var iconMax = innerMax - new Vector2(iconPad, iconPad) + shortcut.IconOffset * scale;
 
-            // QoLBar-style icon rendering with UV transform and cooldown text
-            DrawGameIcon(drawList, iconMin, iconSize, shortcut, hovered, active, opacity, scale, id);
+            // Apply icon zoom
+            if (Math.Abs(shortcut.IconZoom - 1.0f) > 0.01f) {
+                var center = (iconMin + iconMax) * 0.5f;
+                var halfSize = (iconMax - iconMin) * 0.5f * shortcut.IconZoom;
+                iconMin = center - halfSize;
+                iconMax = center + halfSize;
+            }
+
+            DrawGameIcon(shortcut.IconId, iconMin, iconMax);
         } else {
             var text = string.IsNullOrWhiteSpace(shortcut.Name) ? "?" : shortcut.Name;
             if (text.Length > 2) text = text[..2];
@@ -276,69 +268,43 @@ public sealed class QCRenderer : IDisposable {
         }
     }
 
-    // QoLBar-style icon rendering with UV transform
-    private void DrawGameIcon(ImDrawListPtr drawList, Vector2 pos, Vector2 size, QCShortcutDefinition shortcut, bool hovered, bool active, float opacity, float scale, string id) {
-        var tex = GetCachedIcon(shortcut.IconId);
-        if (tex == null) return;
+    private void DrawCooldownOverlay(ImDrawListPtr drawList, Vector2 min, Vector2 max, QCShortcutDefinition shortcut, float scale) {
+        var remaining = this.manager.GetCooldownRemaining(shortcut.CooldownActionId);
+        var maxCd = this.manager.GetCooldownMax(shortcut.CooldownActionId);
+        if (remaining <= 0 || maxCd <= 0) return;
 
-        var zoom = Math.Max(shortcut.IconZoom, 0.01f);
-        var offset = shortcut.IconOffset;
-        var rotation = shortcut.IconRotation;
-        var flipped = shortcut.IconFlipped;
+        var ratio = Math.Clamp(remaining / maxCd, 0.0f, 1.0f);
 
-        // Calculate UV coordinates with zoom + offset (QoLBar-style)
-        var z = 0.5f / zoom;
-        var uv1 = new Vector2(0.5f - z + offset.X, 0.5f - z + offset.Y);
-        var uv3 = new Vector2(0.5f + z + offset.X, 0.5f + z + offset.Y);
+        if (shortcut.CooldownStyle == 0) {
+            // Icon overlay style - dark overlay from bottom
+            var overlayHeight = (max.Y - min.Y) * ratio;
+            var overlayColor = new Vector4(0.0f, 0.0f, 0.0f, 0.45f);
+            drawList.AddRectFilled(
+                new Vector2(min.X, max.Y - overlayHeight),
+                max,
+                ImGui.GetColorU32(overlayColor), 4.0f * scale);
 
-        var p1 = pos;
-        var p2 = pos + new Vector2(size.X, 0);
-        var p3 = pos + size;
-        var p4 = pos + new Vector2(0, size.Y);
-
-        // QoLBar-style: Apply rotation to UV coordinates (4-corner UV rotation)
-        if (Math.Abs(rotation) > 0.001f) {
-            var rCos = (float)Math.Cos(rotation);
-            var rSin = (float)-Math.Sin(rotation);
-            var uvHalfSize = (uv3 - uv1) / 2;
-            var uvCenter = uv1 + uvHalfSize;
-
-            var rotatedUv1 = uvCenter + RotateVector(-uvHalfSize, rCos, rSin);
-            var rotatedUv2 = uvCenter + RotateVector(new Vector2(uvHalfSize.X, -uvHalfSize.Y), rCos, rSin);
-            var rotatedUv3 = uvCenter + RotateVector(uvHalfSize, rCos, rSin);
-            var rotatedUv4 = uvCenter + RotateVector(new Vector2(-uvHalfSize.X, uvHalfSize.Y), rCos, rSin);
-
-            if (!flipped)
-                drawList.AddImageQuad(tex.Handle, p1, p2, p3, p4, rotatedUv1, rotatedUv2, rotatedUv3, rotatedUv4, ImGui.ColorConvertFloat4ToU32(new Vector4(1, 1, 1, opacity)));
-            else
-                drawList.AddImageQuad(tex.Handle, p2, p1, p4, p3, rotatedUv1, rotatedUv2, rotatedUv3, rotatedUv4, ImGui.ColorConvertFloat4ToU32(new Vector4(1, 1, 1, opacity)));
+            // Draw cooldown text
+            var cdText = $"{remaining:F1}";
+            var textSize = ImGui.CalcTextSize(cdText);
+            var textPos = new Vector2(
+                min.X + (max.X - min.X - textSize.X) * 0.5f,
+                max.Y - overlayHeight + 2.0f * scale);
+            drawList.AddText(textPos, ImGui.GetColorU32(new Vector4(1.0f, 1.0f, 1.0f, 0.90f)), cdText);
         } else {
-            if (!flipped)
-                drawList.AddImage(tex.Handle, p1, p3, uv1, uv3, ImGui.ColorConvertFloat4ToU32(new Vector4(1, 1, 1, opacity)));
-            else
-                drawList.AddImageQuad(tex.Handle, p2, p1, p4, p3, uv1, uv1, uv3, uv3, ImGui.ColorConvertFloat4ToU32(new Vector4(1, 1, 1, opacity)));
-        }
-
-        // QoLBar-style: cooldown countdown text
-        if (shortcut.CooldownActionId != 0) {
-            var cooldownCurrent = this.manager.GetCooldownRemaining(shortcut.CooldownActionId);
-            var cooldownMax = this.manager.GetCooldownMax(shortcut.CooldownActionId);
-            if (cooldownMax > 0 && cooldownCurrent > 0) {
-                var center = pos + size / 2;
-                var wantedSize = size.X * 0.75f;
-                var cdStr = $"{Math.Ceiling(cooldownMax - cooldownCurrent)}";
-                var textSizeHalf = ImGui.CalcTextSize(cdStr) / (2 * ImGuiHelpers.GlobalScale);
-                // Outline
-                drawList.AddText(ImGui.GetFont(), wantedSize, center - textSizeHalf + new Vector2(0, wantedSize * 0.05f), 0xFF000000, cdStr);
-                // Main text
-                drawList.AddText(ImGui.GetFont(), wantedSize, center - textSizeHalf - Vector2.UnitY, 0xFFFFFFFF, cdStr);
-            }
+            // Text only style
+            var cdText = $"{remaining:F1}s";
+            var textSize = ImGui.CalcTextSize(cdText);
+            var textPos = new Vector2(
+                min.X + (max.X - min.X - textSize.X) * 0.5f,
+                min.Y + (max.Y - min.Y - textSize.Y) * 0.5f);
+            drawList.AddText(textPos, ImGui.GetColorU32(new Vector4(1.0f, 1.0f, 1.0f, 0.90f)), cdText);
         }
     }
 
     private void DrawCategoryPopup(QCShortcutDefinition shortcut, int barIndex, int shortcutIndex, float scale) {
         var popupId = $"QC_cat_popup_{barIndex}_{shortcutIndex}";
-        var popupWidth = Math.Max(shortcut.CategoryWidth, 40) * scale * shortcut.CategoryScale;
+        var popupWidth = shortcut.CategoryWidth * scale * shortcut.CategoryScale;
         ImGui.SetNextWindowSize(new Vector2(popupWidth, 0.0f), ImGuiCond.Appearing);
         ImGui.SetNextWindowSizeConstraints(new Vector2(popupWidth, 0.0f), new Vector2(popupWidth * 2.0f, float.MaxValue));
 
@@ -353,99 +319,46 @@ public sealed class QCRenderer : IDisposable {
 
         if (!ImGui.BeginPopup(popupId, popupFlags)) return;
 
-        var catSpacing = shortcut.CategorySpacing;
-        var colCount = Math.Max(shortcut.CategoryColumns, 1);
+        if (shortcut.CategoryColumns > 1) {
+            var colCount = shortcut.CategoryColumns;
+            var catSpacing = shortcut.CategorySpacing;
+            var childWidth = (popupWidth - catSpacing.X * (colCount - 1) - ImGui.GetStyle().WindowPadding.X * 2) / colCount;
 
-        // 使用嵌套索引跟踪当前层级，用于生成唯一 ID
-        var childIndex = 0;
-        foreach (var childId in shortcut.ChildShortcutIds) {
-            if (!this.manager.Shortcuts.TryGetValue(childId, out var child)) continue;
+            for (var i = 0; i < shortcut.ChildShortcutIds.Count; i++) {
+                var childId = shortcut.ChildShortcutIds[i];
+                if (!this.manager.Shortcuts.TryGetValue(childId, out var child)) continue;
 
-            var hasSubItems = child.IsCategory && child.ChildShortcutIds.Count > 0;
+                if (i % colCount != 0) ImGui.SameLine(0.0f, catSpacing.X);
 
-            if (colCount > 1 && childIndex % colCount != 0)
-                ImGui.SameLine(0.0f, catSpacing.X);
-
-            ImGui.BeginGroup();
-            ImGui.PushID($"qc_cat_child_{barIndex}_{shortcutIndex}_{childIndex}");
-
-            // 计算子项宽度（多列时）
-            var itemWidth = colCount > 1
-                ? (popupWidth - catSpacing.X * (colCount - 1) - ImGui.GetStyle().WindowPadding.X * 2) / colCount
-                : 0.0f;
-
-            if (hasSubItems) {
-                // 嵌套子分类：点击执行命令，悬停显示子菜单
-                if (!string.IsNullOrWhiteSpace(child.Command)) {
-                    if (ImGui.Selectable(child.Name ?? "?", false, ImGuiSelectableFlags.None,
-                            new Vector2(itemWidth > 0 ? itemWidth : 0, 0))) {
-                        this.manager.ExecuteShortcut(child);
-                        if (!shortcut.CategoryStaysOpen) ImGui.CloseCurrentPopup();
-                    }
-                } else {
-                    ImGui.TextUnformatted(child.Name ?? "?");
-                }
-
-                // 递归渲染子分类的弹出菜单
-                var subPopupId = $"QC_cat_sub_{barIndex}_{shortcutIndex}_{childIndex}";
-                if (ImGui.IsItemHovered()) {
-                    ImGui.OpenPopup(subPopupId);
-                }
-
-                if (ImGui.BeginPopup(subPopupId, ImGuiWindowFlags.NoScrollbar | (child.CategoryNoBackground ? ImGuiWindowFlags.NoBackground : 0))) {
-                    var subWidth = Math.Max(child.CategoryWidth, 40) * scale * child.CategoryScale;
-                    ImGui.SetNextWindowSize(new Vector2(subWidth, 0.0f), ImGuiCond.Appearing);
-                    ImGui.SetNextWindowSizeConstraints(new Vector2(subWidth, 0.0f), new Vector2(subWidth * 2.0f, float.MaxValue));
-
-                    var subChildIndex = 0;
-                    foreach (var subChildId in child.ChildShortcutIds) {
-                        if (!this.manager.Shortcuts.TryGetValue(subChildId, out var subChild)) continue;
-
-                        var subColCount = Math.Max(child.CategoryColumns, 1);
-                        if (subColCount > 1 && subChildIndex % subColCount != 0)
-                            ImGui.SameLine(0.0f, child.CategorySpacing.X);
-
-                        ImGui.PushID($"qc_cat_sub_child_{barIndex}_{shortcutIndex}_{childIndex}_{subChildIndex}");
-
-                        var subItemWidth = subColCount > 1
-                            ? (subWidth - child.CategorySpacing.X * (subColCount - 1) - ImGui.GetStyle().WindowPadding.X * 2) / subColCount
-                            : 0.0f;
-
-                        if (ImGui.Selectable(subChild.Name ?? "?", false, ImGuiSelectableFlags.None,
-                                new Vector2(subItemWidth > 0 ? subItemWidth : 0, 0))) {
-                            this.manager.ExecuteShortcut(subChild);
-                            if (!child.CategoryStaysOpen) ImGui.CloseCurrentPopup();
-                        }
-
-                        if (ImGui.IsItemHovered() && !string.IsNullOrWhiteSpace(subChild.Tooltip)) {
-                            ImGui.SetTooltip(subChild.Tooltip);
-                        }
-                        ImGui.PopID();
-                        subChildIndex++;
-                    }
-
-                    // 悬停关闭
-                    if (child.CategoryHoverClose && !ImGui.IsWindowHovered() && !ImGui.IsAnyItemHovered()) {
-                        ImGui.CloseCurrentPopup();
-                    }
-
-                    ImGui.EndPopup();
-                }
-            } else {
-                // 普通子项
-                if (ImGui.Selectable(child.Name ?? "?", false, ImGuiSelectableFlags.None,
-                        new Vector2(itemWidth > 0 ? itemWidth : 0, 0))) {
+                ImGui.BeginGroup();
+                ImGui.PushID($"qc_cat_child_{barIndex}_{shortcutIndex}_{i}");
+                var label = string.IsNullOrWhiteSpace(child.Name) ? "?" : child.Name;
+                var selectableSize = new Vector2(childWidth, 0.0f);
+                if (ImGui.Selectable(label, false, ImGuiSelectableFlags.None, selectableSize)) {
                     this.manager.ExecuteShortcut(child);
                     if (!shortcut.CategoryStaysOpen) ImGui.CloseCurrentPopup();
                 }
-            }
 
-            if (ImGui.IsItemHovered() && !string.IsNullOrWhiteSpace(child.Tooltip)) {
-                ImGui.SetTooltip(child.Tooltip);
+                if (ImGui.IsItemHovered() && !string.IsNullOrWhiteSpace(child.Tooltip)) {
+                    ImGui.SetTooltip(child.Tooltip);
+                }
+                ImGui.PopID();
+                ImGui.EndGroup();
             }
-            ImGui.PopID();
-            ImGui.EndGroup();
-            childIndex++;
+        } else {
+            foreach (var childId in shortcut.ChildShortcutIds) {
+                if (!this.manager.Shortcuts.TryGetValue(childId, out var child)) continue;
+
+                var label = string.IsNullOrWhiteSpace(child.Name) ? "?" : child.Name;
+                if (ImGui.Selectable(label)) {
+                    this.manager.ExecuteShortcut(child);
+                    if (!shortcut.CategoryStaysOpen) ImGui.CloseCurrentPopup();
+                }
+
+                if (ImGui.IsItemHovered() && !string.IsNullOrWhiteSpace(child.Tooltip)) {
+                    ImGui.SetTooltip(child.Tooltip);
+                }
+            }
         }
 
         // Hover close
@@ -696,24 +609,28 @@ public sealed class QCRenderer : IDisposable {
         drawList.AddCircleFilled(hintPos, hintSize, ImGui.GetColorU32(new Vector4(0.94f, 0.58f, 0.74f, 0.50f)));
     }
 
-    // QoLBar-style: get cached icon, using ITextureProvider for game icons
+    private void DrawGameIcon(uint iconId, Vector2 min, Vector2 max) {
+        try {
+            var texture = GetCachedIcon(iconId);
+            if (texture != null) {
+                ImGui.GetWindowDrawList().AddImage(texture.Handle, min, max);
+            }
+        } catch {
+            // Silently fail icon rendering
+        }
+    }
+
     private IDalamudTextureWrap? GetCachedIcon(uint iconId) {
         if (iconId == 0) return null;
 
-        // Try cache first
         if (this.iconCache.TryGetValue(iconId, out var cached)) {
             return cached;
         }
 
-        // Try to load via ITextureProvider (modern Dalamud API)
-        try {
-            var gameIcon = new GameIconLookup { IconId = iconId, HiRes = false };
-            var texture = this.textureProvider.GetFromGameIcon(gameIcon).GetWrapOrDefault();
-            this.iconCache[iconId] = texture;
-            return texture;
-        } catch {
-            return null;
-        }
+        var gameIcon = new GameIconLookup { IconId = iconId, HiRes = false };
+        var texture = this.textureProvider.GetFromGameIcon(gameIcon).GetWrapOrDefault();
+        this.iconCache[iconId] = texture;
+        return texture;
     }
 
     private static Vector2 SnapToPixel(Vector2 v) => new(MathF.Round(v.X), MathF.Round(v.Y));

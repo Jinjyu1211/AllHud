@@ -1,7 +1,7 @@
 <Project Sdk="Dalamud.NET.Sdk/15.0.0">
     <PropertyGroup>
         <PackageProjectUrl>https://github.com/Jinjyu1211/AllHud</PackageProjectUrl>
-        <Version>0.0.0.23</Version>
+        <Version>0.0.0.24</Version>
         <LangVersion>preview</LangVersion>
         <DebugType>portable</DebugType>
         <TargetFramework>net10.0-windows</TargetFramework>
@@ -11,14 +11,14 @@
         <DefaultItemExcludes>$(DefaultItemExcludes);_refs\**\*</DefaultItemExcludes>
     </PropertyGroup>
 
-    <!-- \u56FD\u670D XIVLauncherCN\uFF1A\u8986\u76D6 SDK \u9ED8\u8BA4\u7684\u56FD\u9645\u670D Dalamud \u8DEF\u5F84 -->
+    <!-- 国服 XIVLauncherCN：覆盖 SDK 默认的国际服 Dalamud 路径 -->
     <PropertyGroup Condition="'$(DALAMUD_HOME)' == '' And $([MSBuild]::IsOSPlatform('Windows'))">
         <DalamudLibPath>$(appdata)\XIVLauncherCN\addon\Hooks\dev\</DalamudLibPath>
-        <!-- SDK \u7684 props \u5DF2\u7528\u56FD\u9645\u670D\u8DEF\u5F84\u62FC\u597D AssemblySearchPaths\uFF0C\u8FD9\u91CC\u628A CN \u8DEF\u5F84\u8865\u56DE\u53BB -->
+        <!-- SDK 的 props 已用国际服路径拼好 AssemblySearchPaths，这里把 CN 路径补回去 -->
         <AssemblySearchPaths>$(AssemblySearchPaths);$(DalamudLibPath)</AssemblySearchPaths>
     </PropertyGroup>
 
-    <!-- \u63D2\u4EF6\u56FE\u6807\uFF1A\u6784\u5EFA\u65F6\u590D\u5236\u5230\u8F93\u51FA\u76EE\u5F55\uFF0CDalamud \u5BF9 dev plugin \u4F1A\u8BFB\u53D6 <DLL\u76EE\u5F55>\images\icon.png -->
+    <!-- 插件图标：构建时复制到输出目录，Dalamud 对 dev plugin 会读取 <DLL目录>\images\icon.png -->
     <ItemGroup>
         <None Include="images\icon.png" Link="images\icon.png" CopyToOutputDirectory="PreserveNewest" />
     </ItemGroup>
